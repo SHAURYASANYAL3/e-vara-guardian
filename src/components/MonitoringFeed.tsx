@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Activity, ExternalLink } from "lucide-react";
 
-interface Alert {
+export interface AlertItem {
   id: number;
   message: string;
   query: string;
@@ -13,6 +13,8 @@ interface MonitoringFeedProps {
   fullName: string;
   username: string;
   keywords: string;
+  onAlertsChange?: (alerts: AlertItem[]) => void;
+  onMonitoringChange?: (active: boolean, startTime: Date | null) => void;
 }
 
 const TEMPLATES = [
@@ -23,9 +25,9 @@ const TEMPLATES = [
   "Content similarity detected for: {query}",
 ];
 
-const MonitoringFeed = ({ fullName, username, keywords }: MonitoringFeedProps) => {
+const MonitoringFeed = ({ fullName, username, keywords, onAlertsChange, onMonitoringChange }: MonitoringFeedProps) => {
   const [monitoring, setMonitoring] = useState(false);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const counterRef = useRef(0);
 
@@ -35,27 +37,35 @@ const MonitoringFeed = ({ fullName, username, keywords }: MonitoringFeedProps) =
     const query = queries[Math.floor(Math.random() * queries.length)] || fullName;
     const template = TEMPLATES[Math.floor(Math.random() * TEMPLATES.length)];
     counterRef.current += 1;
-    const alert: Alert = {
+    const alert: AlertItem = {
       id: counterRef.current,
       message: template.replace("{query}", query),
       query,
       timestamp: new Date(),
       isNew: true,
     };
-    setAlerts(prev => [alert, ...prev].slice(0, 50));
-    // Remove new flag after 3s
+    setAlerts(prev => {
+      const updated = [alert, ...prev].slice(0, 50);
+      onAlertsChange?.(updated);
+      return updated;
+    });
     setTimeout(() => {
-      setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, isNew: false } : a));
+      setAlerts(prev => {
+        const updated = prev.map(a => a.id === alert.id ? { ...a, isNew: false } : a);
+        return updated;
+      });
     }, 3000);
-  }, [fullName, queries]);
+  }, [fullName, queries, onAlertsChange]);
 
   const toggleMonitoring = () => {
     if (monitoring) {
       if (intervalRef.current) clearInterval(intervalRef.current);
       intervalRef.current = null;
       setMonitoring(false);
+      onMonitoringChange?.(false, null);
     } else {
       setMonitoring(true);
+      onMonitoringChange?.(true, new Date());
       generateAlert();
       intervalRef.current = setInterval(generateAlert, 8000);
     }
