@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
-import { Shield, LogOut } from "lucide-react";
+import { Shield, LogOut, History } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import FaceScan from "@/components/FaceScan";
 import IdentityForm from "@/components/IdentityForm";
-import MonitoringFeed from "@/components/MonitoringFeed";
+import MonitoringFeed, { type AlertItem } from "@/components/MonitoringFeed";
 import ToolsPanel from "@/components/ToolsPanel";
+import StatsCards from "@/components/StatsCards";
+import AlertHistory from "@/pages/AlertHistory";
 
 interface DashboardProps {
   onLogout: () => void;
@@ -13,6 +15,14 @@ interface DashboardProps {
 const Dashboard = ({ onLogout }: DashboardProps) => {
   const { user, logout, getIdentity, saveIdentity } = useAuth();
   const [identity, setIdentity] = useState(getIdentity());
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [scanCount, setScanCount] = useState(() => {
+    const id = getIdentity();
+    return id?.faceImage ? 1 : 0;
+  });
+  const [monitoringActive, setMonitoringActive] = useState(false);
+  const [monitoringStart, setMonitoringStart] = useState<Date | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -24,6 +34,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
     const updated = { ...(current || { fullName: "", username: "", socialLink: "", keywords: "" }), faceImage: imageData };
     saveIdentity(updated);
     setIdentity(updated);
+    setScanCount(c => c + 1);
   }, [getIdentity, saveIdentity]);
 
   const handleIdentitySave = useCallback((data: { fullName: string; username: string; socialLink: string; keywords: string }) => {
@@ -33,18 +44,37 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
     setIdentity(updated);
   }, [getIdentity, saveIdentity]);
 
+  const handleAlertsChange = useCallback((newAlerts: AlertItem[]) => {
+    setAlerts(newAlerts);
+  }, []);
+
+  const handleMonitoringChange = useCallback((active: boolean, startTime: Date | null) => {
+    setMonitoringActive(active);
+    setMonitoringStart(startTime);
+  }, []);
+
   const isSetupComplete = identity?.faceImage && identity?.fullName;
+
+  if (showHistory) {
+    return <AlertHistory alerts={alerts} onBack={() => setShowHistory(false)} />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
             <h1 className="text-sm font-mono font-bold text-foreground tracking-tight">E-Vara Dashboard</h1>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowHistory(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+            >
+              <History className="h-3 w-3" />
+              History
+            </button>
             <span className="text-xs font-mono text-muted-foreground hidden sm:inline">{user?.email}</span>
             <button
               onClick={handleLogout}
@@ -58,21 +88,31 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        {/* Stats Cards */}
+        <div className="mb-6">
+          <StatsCards
+            alertCount={alerts.length}
+            scanCount={scanCount}
+            monitoringActive={monitoringActive}
+            monitoringStartTime={monitoringStart}
+          />
+        </div>
+
         <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
-          {/* Left: Control Column */}
           <div className="space-y-4 lg:sticky lg:top-[57px] lg:self-start">
             <FaceScan onComplete={handleFaceComplete} existingImage={identity?.faceImage || null} />
             <IdentityForm onSave={handleIdentitySave} initial={identity} />
             <ToolsPanel />
           </div>
 
-          {/* Right: Feed Column */}
           <div className="space-y-4">
             {isSetupComplete ? (
               <MonitoringFeed
                 fullName={identity!.fullName}
                 username={identity!.username}
                 keywords={identity!.keywords || ""}
+                onAlertsChange={handleAlertsChange}
+                onMonitoringChange={handleMonitoringChange}
               />
             ) : (
               <div className="rounded-lg border border-border bg-card p-12 text-center">
@@ -83,7 +123,6 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
               </div>
             )}
 
-            {/* Security Note */}
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-xs font-body text-muted-foreground leading-relaxed text-center">
                 E-Vara is a prototype monitoring tool designed to help users identify potential identity misuse online.
