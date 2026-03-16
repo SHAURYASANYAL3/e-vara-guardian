@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Activity, ExternalLink } from "lucide-react";
 
+export type AlertSeverity = "low" | "medium" | "high";
+
 export interface AlertItem {
   id: number;
   message: string;
   query: string;
   timestamp: Date;
   isNew: boolean;
+  severity: AlertSeverity;
 }
 
 interface MonitoringFeedProps {
@@ -17,13 +20,34 @@ interface MonitoringFeedProps {
   onMonitoringChange?: (active: boolean, startTime: Date | null) => void;
 }
 
-const TEMPLATES = [
-  "Potential identity mention detected for: {query}",
-  "Possible profile reference found for: {query}",
-  "Username match identified for: {query}",
-  "Social mention flagged for: {query}",
-  "Content similarity detected for: {query}",
+const TEMPLATES: { text: string; severity: AlertSeverity }[] = [
+  { text: "Potential identity mention detected for: {query}", severity: "medium" },
+  { text: "Possible profile reference found for: {query}", severity: "low" },
+  { text: "Username match identified for: {query}", severity: "high" },
+  { text: "Social mention flagged for: {query}", severity: "low" },
+  { text: "Content similarity detected for: {query}", severity: "medium" },
+  { text: "Suspicious account activity detected for: {query}", severity: "high" },
+  { text: "Public data exposure flagged for: {query}", severity: "high" },
+  { text: "Minor keyword match for: {query}", severity: "low" },
 ];
+
+const SEVERITY_STYLES: Record<AlertSeverity, string> = {
+  low: "border-l-[hsl(var(--severity-low))]",
+  medium: "border-l-[hsl(var(--severity-medium))]",
+  high: "border-l-[hsl(var(--severity-high))]",
+};
+
+const SEVERITY_DOT: Record<AlertSeverity, string> = {
+  low: "bg-[hsl(var(--severity-low))]",
+  medium: "bg-[hsl(var(--severity-medium))]",
+  high: "bg-[hsl(var(--severity-high))]",
+};
+
+const SEVERITY_BADGE: Record<AlertSeverity, string> = {
+  low: "text-[hsl(var(--severity-low))] bg-[hsl(var(--severity-low)/0.15)]",
+  medium: "text-[hsl(var(--severity-medium))] bg-[hsl(var(--severity-medium)/0.15)]",
+  high: "text-[hsl(var(--severity-high))] bg-[hsl(var(--severity-high)/0.15)]",
+};
 
 const MonitoringFeed = ({ fullName, username, keywords, onAlertsChange, onMonitoringChange }: MonitoringFeedProps) => {
   const [monitoring, setMonitoring] = useState(false);
@@ -39,10 +63,11 @@ const MonitoringFeed = ({ fullName, username, keywords, onAlertsChange, onMonito
     counterRef.current += 1;
     const alert: AlertItem = {
       id: counterRef.current,
-      message: template.replace("{query}", query),
+      message: template.text.replace("{query}", query),
       query,
       timestamp: new Date(),
       isNew: true,
+      severity: template.severity,
     };
     setAlerts(prev => {
       const updated = [alert, ...prev].slice(0, 50);
@@ -50,10 +75,7 @@ const MonitoringFeed = ({ fullName, username, keywords, onAlertsChange, onMonito
       return updated;
     });
     setTimeout(() => {
-      setAlerts(prev => {
-        const updated = prev.map(a => a.id === alert.id ? { ...a, isNew: false } : a);
-        return updated;
-      });
+      setAlerts(prev => prev.map(a => a.id === alert.id ? { ...a, isNew: false } : a));
     }, 3000);
   }, [fullName, queries, onAlertsChange]);
 
@@ -78,21 +100,21 @@ const MonitoringFeed = ({ fullName, username, keywords, onAlertsChange, onMonito
   }, []);
 
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-mono font-semibold text-foreground uppercase tracking-wider">Monitoring Dashboard</h3>
+    <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Activity className="h-4 w-4 shrink-0 text-primary" />
+          <h3 className="text-xs sm:text-sm font-mono font-semibold text-foreground uppercase tracking-wider truncate">Monitoring</h3>
         </div>
         <button
           onClick={toggleMonitoring}
-          className={`rounded-md px-3 py-1.5 text-xs font-mono font-medium transition-all ${
+          className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-mono font-medium transition-all ${
             monitoring
               ? "bg-secondary text-muted-foreground hover:text-foreground"
               : "bg-primary text-primary-foreground hover:opacity-90"
           }`}
         >
-          {monitoring ? "Stop Monitoring" : "Start Monitoring"}
+          {monitoring ? "Stop" : "Start"}
         </button>
       </div>
 
@@ -115,13 +137,18 @@ const MonitoringFeed = ({ fullName, username, keywords, onAlertsChange, onMonito
           alerts.map((alert) => (
             <div
               key={alert.id}
-              className={`relative rounded-md border border-border bg-secondary p-3 transition-all ${alert.isNew ? "alert-wave" : ""}`}
+              className={`relative rounded-md border border-border border-l-2 ${SEVERITY_STYLES[alert.severity]} bg-secondary p-3 transition-all ${alert.isNew ? "alert-wave" : ""}`}
             >
               {alert.isNew && (
-                <span className="alert-pulse-dot absolute right-3 top-3 h-1.5 w-1.5 rounded-full bg-primary" />
+                <span className={`alert-pulse-dot absolute right-3 top-3 h-1.5 w-1.5 rounded-full ${SEVERITY_DOT[alert.severity]}`} />
               )}
-              <p className="mb-2 text-xs font-body text-foreground">{alert.message}</p>
-              <div className="flex items-center gap-3">
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <p className="text-xs font-body text-foreground">{alert.message}</p>
+                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-mono uppercase ${SEVERITY_BADGE[alert.severity]}`}>
+                  {alert.severity}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
                 <a
                   href={`https://www.google.com/search?q=${encodeURIComponent(alert.query)}`}
                   target="_blank"

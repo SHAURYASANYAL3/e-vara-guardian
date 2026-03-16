@@ -63,33 +63,32 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-primary" />
-            <h1 className="text-sm font-mono font-bold text-foreground tracking-tight">E-Vara Dashboard</h1>
+          <div className="flex items-center gap-2 min-w-0">
+            <Shield className="h-5 w-5 shrink-0 text-primary" />
+            <h1 className="text-sm font-mono font-bold text-foreground tracking-tight truncate">E-Vara</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={() => setShowHistory(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-md border border-border bg-secondary px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
             >
               <History className="h-3 w-3" />
-              History
+              <span className="hidden sm:inline">History</span>
             </button>
-            <span className="text-xs font-mono text-muted-foreground hidden sm:inline">{user?.email}</span>
+            <span className="text-xs font-mono text-muted-foreground hidden lg:inline">{user?.email}</span>
             <button
               onClick={handleLogout}
-              className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary px-3 py-1.5 text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-md border border-border bg-secondary px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
             >
               <LogOut className="h-3 w-3" />
-              Logout
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {/* Stats Cards */}
-        <div className="mb-6">
+      <main className="mx-auto max-w-7xl px-4 py-4 sm:py-6 sm:px-6">
+        <div className="mb-4 sm:mb-6">
           <StatsCards
             alertCount={alerts.length}
             scanCount={scanCount}
@@ -98,7 +97,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
           />
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[360px_1fr]">
           <div className="space-y-4 lg:sticky lg:top-[57px] lg:self-start">
             <FaceScan onComplete={handleFaceComplete} existingImage={identity?.faceImage || null} />
             <IdentityForm onSave={handleIdentitySave} initial={identity} />
@@ -115,9 +114,9 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
                 onMonitoringChange={handleMonitoringChange}
               />
             ) : (
-              <div className="rounded-lg border border-border bg-card p-12 text-center">
+              <div className="rounded-lg border border-border bg-card p-8 sm:p-12 text-center">
                 <Shield className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
-                <p className="text-sm font-mono text-muted-foreground">
+                <p className="text-xs sm:text-sm font-mono text-muted-foreground">
                   Complete identity verification and information to activate monitoring.
                 </p>
               </div>
