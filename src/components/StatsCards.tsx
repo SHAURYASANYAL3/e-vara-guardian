@@ -35,18 +35,18 @@ const StatsCards = ({ alertCount, scanCount, monitoringActive, monitoringStartTi
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {cards.map((card, i) => (
         <div
           key={card.label}
-          className="rounded-lg border border-border bg-card p-4 animate-fade-in"
+          className="rounded-lg border border-border bg-card p-3 sm:p-4 animate-fade-in"
           style={{ animationDelay: `${i * 100}ms`, animationFillMode: "both" }}
         >
-          <div className="mb-2 flex items-center gap-1.5">
+          <div className="mb-1.5 sm:mb-2 flex items-center gap-1.5">
             <card.icon className="h-3.5 w-3.5 text-primary" />
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">{card.label}</span>
           </div>
-          <p className="text-xl font-mono font-bold text-foreground tabular-nums">{card.value}</p>
+          <p className="text-lg sm:text-xl font-mono font-bold text-foreground tabular-nums">{card.value}</p>
         </div>
       ))}
     </div>
