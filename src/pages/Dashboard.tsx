@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
-import { Shield, LogOut, History } from "lucide-react";
+import { Shield, LogOut, History, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import FaceScan from "@/components/FaceScan";
 import IdentityForm from "@/components/IdentityForm";
 import MonitoringFeed, { type AlertItem } from "@/components/MonitoringFeed";
