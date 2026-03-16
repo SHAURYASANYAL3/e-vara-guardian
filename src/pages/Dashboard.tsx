@@ -110,7 +110,7 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
           <div className="space-y-4 lg:sticky lg:top-[57px] lg:self-start">
             <FaceScan onComplete={handleFaceComplete} existingImage={identity?.faceImage || null} />
             <IdentityForm onSave={handleIdentitySave} initial={identity} />
-            <ToolsPanel />
+            <ToolsPanel identity={identity} />
           </div>
 
           <div className="space-y-4">
