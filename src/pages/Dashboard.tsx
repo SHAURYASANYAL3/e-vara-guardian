@@ -15,6 +15,7 @@ interface DashboardProps {
 
 const Dashboard = ({ onLogout }: DashboardProps) => {
   const { user, logout, getIdentity, saveIdentity } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [identity, setIdentity] = useState(getIdentity());
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [scanCount, setScanCount] = useState(() => {
