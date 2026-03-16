@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
-import { Shield, LogOut, History } from "lucide-react";
+import { Shield, LogOut, History, Sun, Moon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import FaceScan from "@/components/FaceScan";
 import IdentityForm from "@/components/IdentityForm";
 import MonitoringFeed, { type AlertItem } from "@/components/MonitoringFeed";
@@ -14,6 +15,7 @@ interface DashboardProps {
 
 const Dashboard = ({ onLogout }: DashboardProps) => {
   const { user, logout, getIdentity, saveIdentity } = useAuth();
+  const { theme, toggle: toggleTheme } = useTheme();
   const [identity, setIdentity] = useState(getIdentity());
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [scanCount, setScanCount] = useState(() => {
@@ -68,6 +70,13 @@ const Dashboard = ({ onLogout }: DashboardProps) => {
             <h1 className="text-sm font-mono font-bold text-foreground tracking-tight truncate">E-Vara</h1>
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
+            <button
+              onClick={toggleTheme}
+              className="inline-flex items-center gap-1 sm:gap-1.5 rounded-md border border-border bg-secondary px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
+            </button>
             <button
               onClick={() => setShowHistory(true)}
               className="inline-flex items-center gap-1 sm:gap-1.5 rounded-md border border-border bg-secondary px-2 sm:px-3 py-1.5 text-[10px] sm:text-xs font-mono text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors"
