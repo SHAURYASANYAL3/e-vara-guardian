@@ -17,6 +17,68 @@ const TINY_FACE_OPTIONS = new faceapi.TinyFaceDetectorOptions({
 });
 
 let modelPromise: Promise<void> | null = null;
+let enginePromise: Promise<void> | null = null;
+let preferredBackend: "webgl" | "cpu" = "webgl";
+
+function getUserMediaSupport() {
+  if (typeof navigator === "undefined") {
+    throw new Error("Camera access is only available in a browser environment.");
+  }
+
+  const mediaDevices = navigator.mediaDevices;
+  if (!mediaDevices?.getUserMedia) {
+    throw new Error("This browser or context does not support camera access. Try HTTPS or localhost in a modern browser.");
+  }
+
+  return mediaDevices;
+}
+
+export async function requestUserCamera() {
+  const mediaDevices = getUserMediaSupport();
+
+  return mediaDevices.getUserMedia({
+    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+    audio: false,
+  });
+}
+
+
+async function ensureFaceApiBackend() {
+  if (!enginePromise) {
+    enginePromise = (async () => {
+      const backends: Array<"webgl" | "cpu"> =
+        preferredBackend === "webgl" ? ["webgl", "cpu"] : ["cpu", "webgl"];
+
+      for (const backend of backends) {
+        try {
+          const initialized = await faceapi.tf.setBackend(backend);
+          await faceapi.tf.ready();
+
+          if (initialized && faceapi.tf.getBackend() === backend) {
+            preferredBackend = backend;
+            return;
+          }
+        } catch {
+          // Try the next backend.
+        }
+      }
+
+      throw new Error("Unable to initialize a TensorFlow backend for face detection.");
+    })();
+  }
+
+  return enginePromise;
+}
+
+async function switchFaceApiBackend(nextBackend: "webgl" | "cpu") {
+  preferredBackend = nextBackend;
+  enginePromise = null;
+  await ensureFaceApiBackend();
+}
+
+function isRecoverableBackendError(error: unknown) {
+  return error instanceof Error && /backend|webgl|tensor/i.test(error.message);
+}
 
 function getUserMediaSupport() {
   if (typeof navigator === "undefined") {
@@ -42,11 +104,11 @@ export async function requestUserCamera() {
 
 export async function loadFaceModels() {
   if (!modelPromise) {
-    modelPromise = Promise.all([
+    modelPromise = ensureFaceApiBackend().then(() => Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
-    ]).then(() => undefined);
+    ])).then(() => undefined);
   }
 
   return modelPromise;
@@ -78,23 +140,34 @@ export function getHeadDirection(landmarks: faceapi.FaceLandmarks68): HeadDirect
   return "front";
 }
 
-export async function detectFaceSnapshot(video: HTMLVideoElement): Promise<FaceDetectionSnapshot | null> {
-  const result = await faceapi
-    .detectSingleFace(video, TINY_FACE_OPTIONS)
-    .withFaceLandmarks()
-    .withFaceDescriptor();
+export async function detectFaceSnapshot(video: HTMLVideoElement, allowBackendFallback = true): Promise<FaceDetectionSnapshot | null> {
+  try {
+    await ensureFaceApiBackend();
 
-  if (!result) return null;
+    const result = await faceapi
+      .detectSingleFace(video, TINY_FACE_OPTIONS)
+      .withFaceLandmarks()
+      .withFaceDescriptor();
 
-  const leftEAR = eyeAspectRatio(result.landmarks.getLeftEye());
-  const rightEAR = eyeAspectRatio(result.landmarks.getRightEye());
+    if (!result) return null;
 
-  return {
-    embedding: Array.from(result.descriptor),
-    confidence: result.detection.score,
-    eyeAspectRatio: (leftEAR + rightEAR) / 2,
-    direction: getHeadDirection(result.landmarks),
-  };
+    const leftEAR = eyeAspectRatio(result.landmarks.getLeftEye());
+    const rightEAR = eyeAspectRatio(result.landmarks.getRightEye());
+
+    return {
+      embedding: Array.from(result.descriptor),
+      confidence: result.detection.score,
+      eyeAspectRatio: (leftEAR + rightEAR) / 2,
+      direction: getHeadDirection(result.landmarks),
+    };
+  } catch (error) {
+    if (allowBackendFallback && preferredBackend !== "cpu" && isRecoverableBackendError(error)) {
+      await switchFaceApiBackend("cpu");
+      return detectFaceSnapshot(video, false);
+    }
+
+    throw error;
+  }
 }
 
 export function averageEmbeddings(embeddings: number[][]) {

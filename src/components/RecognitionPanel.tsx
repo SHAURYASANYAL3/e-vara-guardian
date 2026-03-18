@@ -33,6 +33,7 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestInFlight = useRef(false);
+  const snapshotInFlight = useRef(false);
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState<MatchStatus>("idle");
   const [confidence, setConfidence] = useState(0);
@@ -59,18 +60,19 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
   useEffect(() => stop, [stop]);
 
   const pollRecognition = useCallback(async () => {
-    if (!videoRef.current || requestInFlight.current) return;
+    if (!videoRef.current || requestInFlight.current || snapshotInFlight.current) return;
 
-    const snapshot = await detectFaceSnapshot(videoRef.current);
-    if (!snapshot) {
-      setStatus("no_face");
-      setConfidence(0);
-      return;
-    }
-
-    requestInFlight.current = true;
+    snapshotInFlight.current = true;
 
     try {
+      const snapshot = await detectFaceSnapshot(videoRef.current);
+      if (!snapshot) {
+        setStatus("no_face");
+        setConfidence(0);
+        return;
+      }
+
+      requestInFlight.current = true;
       const { data, error: invokeError } = await supabase.functions.invoke("biometric-recognize", {
         body: { embedding: snapshot.embedding },
       });
@@ -90,6 +92,7 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
       setError(caught instanceof Error ? caught.message : "Recognition failed");
     } finally {
       requestInFlight.current = false;
+      snapshotInFlight.current = false;
     }
   }, [onRecognition, onSuspiciousMatch]);
 
