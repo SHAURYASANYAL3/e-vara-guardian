@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { User } from "lucide-react";
 
 interface IdentityFormProps {
@@ -23,7 +23,7 @@ const IdentityForm = ({ onSave, initial }: IdentityFormProps) => {
     setSaved(Boolean(initial));
   }, [initial]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage(null);
