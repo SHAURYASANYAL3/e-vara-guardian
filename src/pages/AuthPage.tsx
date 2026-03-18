@@ -73,9 +73,14 @@ const AuthPage = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[420px_1fr]">
-        <div className="rounded-2xl border border-border bg-card p-8">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
+      </div>
+
+      <div className="relative grid w-full max-w-6xl gap-8 lg:grid-cols-[420px_1fr]">
+        <div className="glass-panel motion-enter hover-lift rounded-2xl p-8">
           <div className="mb-8 text-center">
             <div className="mb-4 inline-flex items-center gap-2">
               <Shield className="h-8 w-8 text-primary" />
@@ -96,7 +101,7 @@ const AuthPage = () => {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   required
-                  className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-md border border-border bg-secondary/90 px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="Jane Doe"
                 />
               </div>
@@ -109,7 +114,7 @@ const AuthPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                className="w-full rounded-md border border-border bg-secondary/90 px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
                 placeholder="you@example.com"
               />
             </div>
@@ -122,7 +127,7 @@ const AuthPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 pr-10 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  className="w-full rounded-md border border-border bg-secondary/90 px-3 py-2.5 pr-10 text-sm font-body text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
                   placeholder="••••••••"
                 />
                 <button type="button" onClick={() => setShowPassword((open) => !open)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -140,12 +145,12 @@ const AuthPage = () => {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     required
-                    className="w-full rounded-md border border-border bg-secondary px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-md border border-border bg-secondary/90 px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-primary"
                     placeholder="••••••••"
                   />
                 </div>
 
-                <label className="flex items-start gap-3 rounded-md border border-border bg-secondary p-3">
+                <label className="interactive-scale flex items-start gap-3 rounded-md border border-border bg-secondary/90 p-3">
                   <input
                     type="checkbox"
                     checked={consentChecked}
@@ -163,7 +168,7 @@ const AuthPage = () => {
             <button
               type="submit"
               disabled={submitting || (mode === "register" && (!scanResult || !consentChecked))}
-              className="w-full rounded-md bg-primary px-4 py-2.5 text-sm font-mono font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="interactive-scale w-full rounded-md bg-primary px-4 py-2.5 text-sm font-mono font-medium text-primary-foreground transition-all duration-300 hover:opacity-90 hover:shadow-[0_18px_40px_-20px_hsl(var(--primary)/0.9)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? "Processing..." : mode === "login" ? "Sign In" : "Create Secure Account"}
             </button>
@@ -177,18 +182,18 @@ const AuthPage = () => {
                 setError("");
                 setNotice("");
               }}
-              className="text-primary hover:underline"
+              className="transition-all duration-300 text-primary hover:underline hover:opacity-80"
             >
               {mode === "login" ? "Register" : "Sign In"}
             </button>
           </p>
         </div>
 
-        <div className="space-y-4">
+        <div className="motion-enter motion-enter-delay-2 space-y-4">
           {mode === "register" ? (
             <FaceScan mode="enroll" consentGranted={consentChecked} onComplete={setScanResult} />
           ) : (
-            <div className="rounded-2xl border border-border bg-card p-8">
+            <div className="glass-panel hover-lift rounded-2xl p-8">
               <h2 className="text-lg font-mono font-semibold text-foreground">Biometric login step</h2>
               <p className="mt-3 text-sm font-body leading-relaxed text-muted-foreground">
                 After password sign-in, the app requires a live webcam face verification with liveness checks before granting access.
@@ -199,7 +204,7 @@ const AuthPage = () => {
                   "Blink + head-turn liveness",
                   "Encrypted embeddings only",
                 ].map((item) => (
-                  <div key={item} className="rounded-md border border-border bg-secondary px-4 py-6 text-center text-xs font-mono text-foreground">
+                  <div key={item} className="interactive-scale rounded-md border border-border bg-secondary/90 px-4 py-6 text-center text-xs font-mono text-foreground">
                     {item}
                   </div>
                 ))}
