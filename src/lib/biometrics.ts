@@ -1,0 +1,137 @@
+import * as faceapi from "face-api.js";
+
+export type HeadDirection = "front" | "turn_left" | "turn_right";
+export type BiometricChallenge = HeadDirection | "blink";
+
+export interface FaceDetectionSnapshot {
+  embedding: number[];
+  confidence: number;
+  eyeAspectRatio: number;
+  direction: HeadDirection;
+}
+
+const MODEL_URL = "/models";
+const TINY_FACE_OPTIONS = new faceapi.TinyFaceDetectorOptions({
+  inputSize: 224,
+  scoreThreshold: 0.5,
+});
+
+let modelPromise: Promise<void> | null = null;
+
+export async function loadFaceModels() {
+  if (!modelPromise) {
+    modelPromise = Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+    ]).then(() => undefined);
+  }
+
+  return modelPromise;
+}
+
+function distance(a: faceapi.Point, b: faceapi.Point) {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
+
+function eyeAspectRatio(eye: faceapi.Point[]) {
+  const vertical1 = distance(eye[1], eye[5]);
+  const vertical2 = distance(eye[2], eye[4]);
+  const horizontal = distance(eye[0], eye[3]);
+
+  if (!horizontal) return 0;
+  return (vertical1 + vertical2) / (2 * horizontal);
+}
+
+export function getHeadDirection(landmarks: faceapi.FaceLandmarks68): HeadDirection {
+  const jaw = landmarks.getJawOutline();
+  const nose = landmarks.getNose();
+  const leftJaw = jaw[0].x;
+  const rightJaw = jaw[16].x;
+  const noseBridge = nose[3]?.x ?? nose[0]?.x ?? (leftJaw + rightJaw) / 2;
+  const normalized = (noseBridge - leftJaw) / Math.max(rightJaw - leftJaw, 1);
+
+  if (normalized < 0.42) return "turn_left";
+  if (normalized > 0.58) return "turn_right";
+  return "front";
+}
+
+export async function detectFaceSnapshot(video: HTMLVideoElement): Promise<FaceDetectionSnapshot | null> {
+  const result = await faceapi
+    .detectSingleFace(video, TINY_FACE_OPTIONS)
+    .withFaceLandmarks()
+    .withFaceDescriptor();
+
+  if (!result) return null;
+
+  const leftEAR = eyeAspectRatio(result.landmarks.getLeftEye());
+  const rightEAR = eyeAspectRatio(result.landmarks.getRightEye());
+
+  return {
+    embedding: Array.from(result.descriptor),
+    confidence: result.detection.score,
+    eyeAspectRatio: (leftEAR + rightEAR) / 2,
+    direction: getHeadDirection(result.landmarks),
+  };
+}
+
+export function averageEmbeddings(embeddings: number[][]) {
+  if (!embeddings.length) return [];
+
+  const dimension = embeddings[0].length;
+  const totals = new Array<number>(dimension).fill(0);
+
+  for (const embedding of embeddings) {
+    for (let index = 0; index < dimension; index += 1) {
+      totals[index] += embedding[index] ?? 0;
+    }
+  }
+
+  return totals.map((value) => value / embeddings.length);
+}
+
+export function cosineSimilarity(a: number[], b: number[]) {
+  if (!a.length || a.length !== b.length) return 0;
+
+  let dot = 0;
+  let magnitudeA = 0;
+  let magnitudeB = 0;
+
+  for (let index = 0; index < a.length; index += 1) {
+    dot += a[index] * b[index];
+    magnitudeA += a[index] * a[index];
+    magnitudeB += b[index] * b[index];
+  }
+
+  if (!magnitudeA || !magnitudeB) return 0;
+  return dot / (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB));
+}
+
+export const ENROLLMENT_SEQUENCE: BiometricChallenge[] = ["front", "turn_left", "turn_right", "blink"];
+
+export function createVerificationSequence(): BiometricChallenge[] {
+  return ["front", Math.random() > 0.5 ? "turn_left" : "turn_right", "blink"];
+}
+
+export function challengeLabel(challenge: BiometricChallenge) {
+  switch (challenge) {
+    case "front":
+      return "Look straight into the camera";
+    case "turn_left":
+      return "Turn your head left";
+    case "turn_right":
+      return "Turn your head right";
+    case "blink":
+      return "Blink once";
+    default:
+      return "Hold steady";
+  }
+}
+
+export function formatConfidence(score: number) {
+  return `${Math.round(score * 100)}%`;
+}
+
+export function hasValidEmbedding(embedding: number[]) {
+  return Array.isArray(embedding) && embedding.length === 128 && embedding.every((value) => Number.isFinite(value));
+}
