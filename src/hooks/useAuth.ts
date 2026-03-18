@@ -1,55 +1,202 @@
-import { useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AuthUser {
+  id: string;
   email: string;
 }
 
-interface IdentityInfo {
-  fullName: string;
+export interface ProfileRecord {
+  displayName: string;
   username: string;
   socialLink: string;
   keywords: string;
-  faceImage: string | null;
 }
 
+export interface SuspiciousAlert {
+  id: string;
+  alertType: string;
+  message: string;
+  confidence: number;
+  acknowledgedByUser: boolean;
+  acknowledgedByAdmin: boolean;
+  createdAt: string;
+}
+
+const biometricFlagKey = (userId: string) => `evara-biometric-verified:${userId}`;
+
 export function useAuth() {
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const session = localStorage.getItem("evara-session");
-    return session ? JSON.parse(session) : null;
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [alerts, setAlerts] = useState<SuspiciousAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false);
+  const [biometricVerified, setBiometricVerifiedState] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  const register = useCallback((email: string, password: string, confirmPassword: string): string | null => {
-    if (password !== confirmPassword) return "Passwords do not match";
-    if (password.length < 6) return "Password must be at least 6 characters";
-    const users = JSON.parse(localStorage.getItem("evara-users") || "{}");
-    if (users[email]) return "Email already registered";
-    users[email] = password;
-    localStorage.setItem("evara-users", JSON.stringify(users));
+  const syncSession = useCallback((sessionUser: { id: string; email?: string | null } | null) => {
+    if (!sessionUser) {
+      setUser(null);
+      setProfile(null);
+      setAlerts([]);
+      setIsBiometricEnrolled(false);
+      setBiometricVerifiedState(false);
+      setIsAdmin(false);
+      setLoading(false);
+      return;
+    }
+
+    setUser({ id: sessionUser.id, email: sessionUser.email ?? "" });
+    setBiometricVerifiedState(sessionStorage.getItem(biometricFlagKey(sessionUser.id)) === "true");
+    setLoading(false);
+  }, []);
+
+  const refreshState = useCallback(async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase.functions.invoke("biometric-me", { body: {} });
+    if (error) throw error;
+
+    setProfile(data?.profile ? {
+      displayName: data.profile.display_name ?? "",
+      username: data.profile.username ?? "",
+      socialLink: data.profile.social_link ?? "",
+      keywords: data.profile.keywords ?? "",
+    } : null);
+
+    setAlerts((data?.alerts ?? []).map((alert: any) => ({
+      id: String(alert.id),
+      alertType: String(alert.alert_type),
+      message: String(alert.message),
+      confidence: Number(alert.confidence ?? 0),
+      acknowledgedByUser: Boolean(alert.acknowledged_by_user),
+      acknowledgedByAdmin: Boolean(alert.acknowledged_by_admin),
+      createdAt: String(alert.created_at),
+    })));
+
+    setIsBiometricEnrolled(Boolean(data?.isEnrolled));
+    setIsAdmin(Boolean(data?.isAdmin));
+  }, [user]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+      syncSession(data.session?.user ?? null);
+    });
+
+    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      syncSession(session?.user ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.subscription.unsubscribe();
+    };
+  }, [syncSession]);
+
+  useEffect(() => {
+    if (!user) return;
+    void refreshState();
+  }, [user, refreshState]);
+
+  const register = useCallback(async (payload: {
+    email: string;
+    password: string;
+    confirmPassword: string;
+    displayName: string;
+  }) => {
+    if (payload.password !== payload.confirmPassword) return { error: "Passwords do not match", hasSession: false };
+    if (payload.password.length < 6) return { error: "Password must be at least 6 characters", hasSession: false };
+
+    const { data, error } = await supabase.auth.signUp({
+      email: payload.email,
+      password: payload.password,
+      options: {
+        data: { display_name: payload.displayName },
+      },
+    });
+
+    return {
+      error: error?.message ?? null,
+      hasSession: Boolean(data.session),
+      needsEmailVerification: Boolean(data.user && !data.session),
+    };
+  }, []);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!error) {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        sessionStorage.removeItem(biometricFlagKey(data.user.id));
+        setBiometricVerifiedState(false);
+      }
+    }
+    return error?.message ?? null;
+  }, []);
+
+  const logout = useCallback(async () => {
+    if (user) {
+      sessionStorage.removeItem(biometricFlagKey(user.id));
+    }
+    await supabase.auth.signOut();
+  }, [user]);
+
+  const saveProfile = useCallback(async (nextProfile: ProfileRecord) => {
+    const { error } = await supabase.functions.invoke("biometric-profile", {
+      body: {
+        displayName: nextProfile.displayName,
+        username: nextProfile.username,
+        socialLink: nextProfile.socialLink,
+        keywords: nextProfile.keywords,
+      },
+    });
+
+    if (error) return error.message;
+    await refreshState();
     return null;
-  }, []);
+  }, [refreshState]);
 
-  const login = useCallback((email: string, password: string): string | null => {
-    const users = JSON.parse(localStorage.getItem("evara-users") || "{}");
-    if (!users[email] || users[email] !== password) return "Invalid email or password";
-    const u = { email };
-    localStorage.setItem("evara-session", JSON.stringify(u));
-    setUser(u);
+  const acknowledgeAlert = useCallback(async (alertId: string) => {
+    const { error } = await supabase.functions.invoke("biometric-ack-alert", {
+      body: { alertId },
+    });
+
+    if (error) return error.message;
+    await refreshState();
     return null;
-  }, []);
+  }, [refreshState]);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("evara-session");
-    setUser(null);
-  }, []);
+  const setBiometricVerified = useCallback((verified: boolean) => {
+    if (user) {
+      if (verified) {
+        sessionStorage.setItem(biometricFlagKey(user.id), "true");
+      } else {
+        sessionStorage.removeItem(biometricFlagKey(user.id));
+      }
+    }
+    setBiometricVerifiedState(verified);
+  }, [user]);
 
-  const getIdentity = useCallback((): IdentityInfo | null => {
-    const data = localStorage.getItem("evara-identity");
-    return data ? JSON.parse(data) : null;
-  }, []);
+  const hasProfile = useMemo(() => Boolean(profile?.displayName || profile?.username), [profile]);
 
-  const saveIdentity = useCallback((info: IdentityInfo) => {
-    localStorage.setItem("evara-identity", JSON.stringify(info));
-  }, []);
-
-  return { user, register, login, logout, getIdentity, saveIdentity };
+  return {
+    user,
+    profile,
+    alerts,
+    loading,
+    isAdmin,
+    hasProfile,
+    biometricVerified,
+    isBiometricEnrolled,
+    register,
+    login,
+    logout,
+    refreshState,
+    saveProfile,
+    acknowledgeAlert,
+    setBiometricVerified,
+  };
 }

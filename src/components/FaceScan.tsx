@@ -1,110 +1,223 @@
-import { useRef, useState, useCallback, useEffect } from "react";
-import { Camera, CheckCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Camera, CheckCircle2, Loader2 } from "lucide-react";
+import {
+  ENROLLMENT_SEQUENCE,
+  averageEmbeddings,
+  challengeLabel,
+  createVerificationSequence,
+  detectFaceSnapshot,
+  formatConfidence,
+  loadFaceModels,
+  type BiometricChallenge,
+} from "@/lib/biometrics";
 
-interface FaceScanProps {
-  onComplete: (imageData: string) => void;
-  existingImage: string | null;
+export interface BiometricScanResult {
+  embedding: number[];
+  anglesCompleted: string[];
+  blinkDetected: boolean;
+  completedChallenges: string[];
+  sampleCount: number;
+  confidence: number;
 }
 
-const FaceScan = ({ onComplete, existingImage }: FaceScanProps) => {
+interface FaceScanProps {
+  mode: "enroll" | "verify";
+  consentGranted: boolean;
+  onComplete: (result: BiometricScanResult) => void;
+}
+
+const CLOSED_EYE_THRESHOLD = 0.19;
+const OPEN_EYE_THRESHOLD = 0.245;
+
+const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [scanning, setScanning] = useState(false);
-  const [captured, setCaptured] = useState<string | null>(existingImage);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const embeddingsRef = useRef<number[][]>([]);
+  const blinkArmedRef = useRef(false);
+  const stableFramesRef = useRef(0);
+  const [active, setActive] = useState(false);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [completedChallenges, setCompletedChallenges] = useState<BiometricChallenge[]>([]);
+  const [blinkDetected, setBlinkDetected] = useState(false);
+  const [sampleCount, setSampleCount] = useState(0);
+  const [confidence, setConfidence] = useState(0);
 
-  const startScan = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 320, height: 240 } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setScanning(true);
-      setCaptured(null);
-      setCountdown(3);
-    } catch {
-      // Camera not available — generate placeholder
-      const placeholderCanvas = document.createElement("canvas");
-      placeholderCanvas.width = 320;
-      placeholderCanvas.height = 240;
-      const ctx = placeholderCanvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = "#101820";
-        ctx.fillRect(0, 0, 320, 240);
-        ctx.fillStyle = "#38BDF8";
-        ctx.font = "14px IBM Plex Mono";
-        ctx.textAlign = "center";
-        ctx.fillText("Identity Verified", 160, 125);
-      }
-      const data = placeholderCanvas.toDataURL("image/png");
-      setCaptured(data);
-      onComplete(data);
+  const sequence = useMemo(
+    () => (mode === "enroll" ? ENROLLMENT_SEQUENCE : createVerificationSequence()),
+    [mode],
+  );
+
+  const currentChallenge = sequence[completedChallenges.length];
+
+  const stop = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-  }, [onComplete]);
 
-  useEffect(() => {
-    if (countdown === null || countdown < 0) return;
-    if (countdown === 0) {
-      // capture
-      if (videoRef.current && canvasRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        canvasRef.current.width = 320;
-        canvasRef.current.height = 240;
-        ctx?.drawImage(videoRef.current, 0, 0, 320, 240);
-        const data = canvasRef.current.toDataURL("image/png");
-        setCaptured(data);
-        onComplete(data);
-        // stop stream
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream?.getTracks().forEach(t => t.stop());
-        setScanning(false);
-      }
-      setCountdown(null);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    setActive(false);
+  }, []);
+
+  useEffect(() => stop, [stop]);
+
+  const finish = useCallback(() => {
+    const embedding = averageEmbeddings(embeddingsRef.current);
+    if (!embedding.length) {
+      setError("Unable to extract a stable face embedding. Please retry in brighter lighting.");
+      stop();
       return;
     }
-    const timer = setTimeout(() => setCountdown(c => (c !== null ? c - 1 : null)), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown, onComplete]);
+
+    onComplete({
+      embedding,
+      anglesCompleted: completedChallenges.filter((challenge) => challenge !== "blink") as Array<"front" | "turn_left" | "turn_right">,
+      blinkDetected,
+      completedChallenges,
+      sampleCount,
+      confidence,
+    });
+    stop();
+  }, [blinkDetected, completedChallenges, confidence, onComplete, sampleCount, stop]);
+
+  useEffect(() => {
+    if (active && completedChallenges.length === sequence.length) {
+      finish();
+    }
+  }, [active, completedChallenges, finish, sequence.length]);
+
+  const handleSnapshot = useCallback(async () => {
+    if (!videoRef.current || !currentChallenge) return;
+
+    const snapshot = await detectFaceSnapshot(videoRef.current);
+    if (!snapshot) {
+      stableFramesRef.current = 0;
+      return;
+    }
+
+    setConfidence(snapshot.confidence);
+    setSampleCount((count) => count + 1);
+
+    if (currentChallenge === "blink") {
+      if (snapshot.eyeAspectRatio > OPEN_EYE_THRESHOLD) {
+        blinkArmedRef.current = true;
+      }
+
+      if (blinkArmedRef.current && snapshot.eyeAspectRatio < CLOSED_EYE_THRESHOLD) {
+        setBlinkDetected(true);
+        setCompletedChallenges((current) => [...current, "blink"]);
+      }
+
+      return;
+    }
+
+    if (snapshot.direction === currentChallenge) {
+      stableFramesRef.current += 1;
+    } else {
+      stableFramesRef.current = 0;
+    }
+
+    if (stableFramesRef.current >= 3) {
+      embeddingsRef.current.push(snapshot.embedding);
+      setCompletedChallenges((current) => [...current, currentChallenge]);
+      stableFramesRef.current = 0;
+    }
+  }, [currentChallenge]);
+
+  const start = useCallback(async () => {
+    if (!consentGranted) {
+      setError("Consent is required before activating the live camera.");
+      return;
+    }
+
+    try {
+      setError(null);
+      setLoadingModels(true);
+      setCompletedChallenges([]);
+      setBlinkDetected(false);
+      setSampleCount(0);
+      setConfidence(0);
+      embeddingsRef.current = [];
+      blinkArmedRef.current = false;
+      stableFramesRef.current = 0;
+
+      await loadFaceModels();
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      setActive(true);
+      intervalRef.current = setInterval(() => {
+        void handleSnapshot();
+      }, 350);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Camera unavailable");
+    } finally {
+      setLoadingModels(false);
+    }
+  }, [consentGranted, handleSnapshot]);
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">
       <div className="mb-4 flex items-center gap-2">
         <Camera className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-mono font-semibold text-foreground uppercase tracking-wider">Identity Verification</h3>
+        <h2 className="text-sm font-mono font-semibold uppercase tracking-wider text-foreground">
+          {mode === "enroll" ? "Live Face Enrollment" : "Live Face Verification"}
+        </h2>
       </div>
 
-      {captured ? (
-        <div className="space-y-3">
-          <div className="relative overflow-hidden rounded-md">
-            <img src={captured} alt="Captured identity" className="w-full max-w-[320px] rounded-md" />
-            <div className="absolute bottom-2 right-2 flex items-center gap-1 rounded bg-card/80 px-2 py-1">
-              <CheckCircle className="h-3 w-3 text-primary" />
-              <span className="text-xs font-mono text-primary">Verified</span>
+      <div className="overflow-hidden rounded-md border border-border bg-secondary">
+        <video ref={videoRef} className="aspect-[4/3] w-full object-cover" muted playsInline />
+      </div>
+
+      <div className="mt-4 rounded-md border border-border bg-secondary px-4 py-3">
+        <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Current challenge</p>
+        <p className="mt-1 text-sm font-body text-foreground">{currentChallenge ? challengeLabel(currentChallenge) : "Scan complete"}</p>
+      </div>
+
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        {sequence.map((challenge) => {
+          const complete = completedChallenges.includes(challenge);
+          return (
+            <div key={challenge} className="flex items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2">
+              <CheckCircle2 className={`h-4 w-4 ${complete ? "text-primary" : "text-muted-foreground"}`} />
+              <span className="text-xs font-mono text-foreground">{challengeLabel(challenge)}</span>
             </div>
-          </div>
-          <button onClick={startScan} className="text-xs font-mono text-muted-foreground hover:text-primary transition-colors">
-            Rescan
-          </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3 rounded-md border border-border bg-secondary px-4 py-3">
+        <div>
+          <p className="text-xs font-mono uppercase tracking-wider text-muted-foreground">Detector confidence</p>
+          <p className="mt-1 text-sm font-body text-foreground">{formatConfidence(confidence)}</p>
         </div>
-      ) : scanning ? (
-        <div className="relative overflow-hidden rounded-md bg-secondary">
-          <video ref={videoRef} className="w-full max-w-[320px] rounded-md" muted playsInline />
-          {countdown !== null && countdown > 0 && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
-              <span className="text-4xl font-mono font-bold text-primary">{countdown}</span>
-            </div>
-          )}
-        </div>
-      ) : (
         <button
-          onClick={startScan}
-          className="w-full rounded-md border border-border bg-secondary px-4 py-8 text-sm font-mono text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+          onClick={active ? stop : () => void start()}
+          disabled={loadingModels}
+          className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-xs font-mono transition-colors ${
+            active ? "bg-background text-muted-foreground hover:text-foreground" : "bg-primary text-primary-foreground hover:opacity-90"
+          } disabled:cursor-not-allowed disabled:opacity-50`}
         >
-          Start Face Scan
+          {loadingModels && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {active ? "Stop scan" : mode === "enroll" ? "Start live capture" : "Start live verification"}
         </button>
-      )}
-      <canvas ref={canvasRef} className="hidden" />
+      </div>
+
+      {error && <p className="mt-3 text-sm font-body text-destructive">{error}</p>}
+      <p className="mt-3 text-xs font-body leading-relaxed text-muted-foreground">
+        Live camera only. The component uses face-api.js locally in the browser and never stores raw images.
+      </p>
     </div>
   );
 };
