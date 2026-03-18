@@ -11,7 +11,7 @@ import RecognitionPanel from "@/components/RecognitionPanel";
 import BiometricAlertsPanel from "@/components/BiometricAlertsPanel";
 
 const Dashboard = () => {
-  const { user, logout, profile, alerts, isAdmin, saveProfile, refreshState } = useAuth();
+  const { user, logout, profile, alerts, isAdmin, saveProfile, refreshState, acknowledgeAlert } = useAuth();
   const { theme, toggle: toggleTheme } = useTheme();
   const [monitoringAlerts, setMonitoringAlerts] = useState<AlertItem[]>([]);
   const [scanCount, setScanCount] = useState(1);
