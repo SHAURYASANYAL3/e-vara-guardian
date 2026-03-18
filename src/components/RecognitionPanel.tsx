@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ScanFace, ShieldAlert, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { detectFaceSnapshot, formatConfidence, loadFaceModels } from "@/lib/biometrics";
+import { detectFaceSnapshot, formatConfidence, loadFaceModels, requestUserCamera } from "@/lib/biometrics";
 
 interface RecognitionPanelProps {
   onRecognition?: () => void;
@@ -46,6 +46,12 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
 
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
     setActive(false);
     setStatus("idle");
   }, []);
@@ -91,10 +97,7 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
     try {
       setError(null);
       await loadFaceModels();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      const stream = await requestUserCamera();
 
       streamRef.current = stream;
       if (videoRef.current) {

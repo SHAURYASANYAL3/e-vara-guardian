@@ -18,6 +18,28 @@ const TINY_FACE_OPTIONS = new faceapi.TinyFaceDetectorOptions({
 
 let modelPromise: Promise<void> | null = null;
 
+function getUserMediaSupport() {
+  if (typeof navigator === "undefined") {
+    throw new Error("Camera access is only available in a browser environment.");
+  }
+
+  const mediaDevices = navigator.mediaDevices;
+  if (!mediaDevices?.getUserMedia) {
+    throw new Error("This browser or context does not support camera access. Try HTTPS or localhost in a modern browser.");
+  }
+
+  return mediaDevices;
+}
+
+export async function requestUserCamera() {
+  const mediaDevices = getUserMediaSupport();
+
+  return mediaDevices.getUserMedia({
+    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+    audio: false,
+  });
+}
+
 export async function loadFaceModels() {
   if (!modelPromise) {
     modelPromise = Promise.all([
