@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Eye, Shield } from "lucide-react";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +19,7 @@ const AuthPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const { register, login, setBiometricVerified } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     setNotice("");
