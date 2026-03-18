@@ -8,6 +8,7 @@ import {
   detectFaceSnapshot,
   formatConfidence,
   loadFaceModels,
+  requestUserCamera,
   type BiometricChallenge,
 } from "@/lib/biometrics";
 
@@ -59,6 +60,12 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
 
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
     setActive(false);
   }, []);
 
@@ -145,10 +152,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
       stableFramesRef.current = 0;
 
       await loadFaceModels();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      const stream = await requestUserCamera();
 
       streamRef.current = stream;
       if (videoRef.current) {
