@@ -110,11 +110,25 @@
   * {
     @apply border-border;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
+    background-image:
+      radial-gradient(circle at top, hsl(var(--primary) / 0.12), transparent 28%),
+      radial-gradient(circle at bottom right, hsl(var(--accent) / 0.08), transparent 24%);
+    background-attachment: fixed;
   }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-mono;
+  }
+
+  #root {
+    min-height: 100vh;
   }
 }
 
@@ -153,4 +167,36 @@
 ::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
   border-radius: 2px;
+}
+
+
+@layer utilities {
+  .glass-panel {
+    @apply border border-border/70 bg-card/80 backdrop-blur-xl shadow-[0_24px_80px_-32px_hsl(var(--foreground)/0.35)];
+  }
+
+  .motion-enter {
+    @apply animate-fade-in;
+    animation-fill-mode: both;
+  }
+
+  .motion-enter-delay-1 {
+    animation-delay: 120ms;
+  }
+
+  .motion-enter-delay-2 {
+    animation-delay: 220ms;
+  }
+
+  .motion-enter-delay-3 {
+    animation-delay: 320ms;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-24px_hsl(var(--foreground)/0.45)];
+  }
+
+  .interactive-scale {
+    @apply transition-transform duration-300 hover:scale-[1.02] active:scale-[0.99];
+  }
 }
