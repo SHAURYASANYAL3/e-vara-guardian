@@ -31,7 +31,7 @@ const BiometricAlertsPanel = ({ alerts, isAdmin, onAcknowledge }: BiometricAlert
                   <div>
                     <p className="text-sm font-mono text-foreground">{alert.message}</p>
                     <p className="mt-1 text-xs font-body text-muted-foreground">
-                      {alert.alertType.replaceAll("_", " ")} · confidence {Math.round(alert.confidence * 100)}%
+                      {alert.alertType.replace(/_/g, " ")} · confidence {Math.round(alert.confidence * 100)}%
                     </p>
                   </div>
                   <button

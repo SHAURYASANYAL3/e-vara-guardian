@@ -94,7 +94,7 @@ const Dashboard = () => {
           </div>
 
           <div className="space-y-4">
-            <BiometricAlertsPanel alerts={alerts} isAdmin={isAdmin} onAcknowledge={async (alertId) => (await import("@/hooks/useAuth")).useAuth ? null : null} />
+            <BiometricAlertsPanel alerts={alerts} isAdmin={isAdmin} onAcknowledge={acknowledgeAlert} />
             {isSetupComplete ? (
               <MonitoringFeed
                 fullName={profile?.displayName ?? user?.email ?? ""}
