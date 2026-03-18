@@ -67,7 +67,6 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
       videoRef.current.srcObject = null;
     }
 
-    snapshotInFlightRef.current = false;
     setActive(false);
   }, []);
 

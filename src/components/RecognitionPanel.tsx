@@ -53,8 +53,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
       videoRef.current.srcObject = null;
     }
 
-    requestInFlight.current = false;
-    snapshotInFlight.current = false;
     setActive(false);
     setStatus("idle");
   }, []);
