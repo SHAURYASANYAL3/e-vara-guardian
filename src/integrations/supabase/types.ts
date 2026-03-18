@@ -14,16 +14,249 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      biometric_consent_logs: {
+        Row: {
+          action: Database["public"]["Enums"]["biometric_action"]
+          consent_text: string
+          consented_at: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["biometric_action"]
+          consent_text: string
+          consented_at?: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["biometric_action"]
+          consent_text?: string
+          consented_at?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      face_embeddings: {
+        Row: {
+          angles_completed: string[]
+          consented_at: string
+          created_at: string
+          embedding_ciphertext: string
+          embedding_iv: string
+          embedding_version: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          angles_completed?: string[]
+          consented_at: string
+          created_at?: string
+          embedding_ciphertext: string
+          embedding_iv: string
+          embedding_version?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          angles_completed?: string[]
+          consented_at?: string
+          created_at?: string
+          embedding_ciphertext?: string
+          embedding_iv?: string
+          embedding_version?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      liveness_challenges: {
+        Row: {
+          challenge_type: Database["public"]["Enums"]["liveness_challenge_type"]
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          instruction: string
+          success: boolean | null
+          user_id: string
+        }
+        Insert: {
+          challenge_type: Database["public"]["Enums"]["liveness_challenge_type"]
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          instruction: string
+          success?: boolean | null
+          user_id: string
+        }
+        Update: {
+          challenge_type?: Database["public"]["Enums"]["liveness_challenge_type"]
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          instruction?: string
+          success?: boolean | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      login_attempts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          details: Json
+          id: string
+          status: Database["public"]["Enums"]["login_attempt_status"]
+          user_id: string | null
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          details?: Json
+          id?: string
+          status: Database["public"]["Enums"]["login_attempt_status"]
+          user_id?: string | null
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          details?: Json
+          id?: string
+          status?: Database["public"]["Enums"]["login_attempt_status"]
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          keywords: string | null
+          social_link: string | null
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          keywords?: string | null
+          social_link?: string | null
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          keywords?: string | null
+          social_link?: string | null
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
+      suspicious_activity_alerts: {
+        Row: {
+          acknowledged_by_admin: boolean
+          acknowledged_by_user: boolean
+          alert_type: Database["public"]["Enums"]["alert_type"]
+          confidence: number | null
+          created_at: string
+          id: string
+          matched_user_id: string | null
+          message: string
+          user_id: string
+        }
+        Insert: {
+          acknowledged_by_admin?: boolean
+          acknowledged_by_user?: boolean
+          alert_type: Database["public"]["Enums"]["alert_type"]
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          matched_user_id?: string | null
+          message: string
+          user_id: string
+        }
+        Update: {
+          acknowledged_by_admin?: boolean
+          acknowledged_by_user?: boolean
+          alert_type?: Database["public"]["Enums"]["alert_type"]
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          matched_user_id?: string | null
+          message?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_biometric_consent: {
+        Args: {
+          _action: Database["public"]["Enums"]["biometric_action"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      alert_type: "duplicate_identity" | "failed_login_pattern"
+      app_role: "admin" | "user"
+      biometric_action: "registration" | "login"
+      liveness_challenge_type: "blink" | "turn_left" | "turn_right"
+      login_attempt_status:
+        | "success"
+        | "failed_liveness"
+        | "failed_match"
+        | "duplicate_detected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +383,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      alert_type: ["duplicate_identity", "failed_login_pattern"],
+      app_role: ["admin", "user"],
+      biometric_action: ["registration", "login"],
+      liveness_challenge_type: ["blink", "turn_left", "turn_right"],
+      login_attempt_status: [
+        "success",
+        "failed_liveness",
+        "failed_match",
+        "duplicate_detected",
+      ],
+    },
   },
 } as const
