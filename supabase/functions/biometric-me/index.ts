@@ -1,11 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { getAdminClient, getAuthenticatedUser, getUserRoles } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const rl = checkRateLimit(req, "biometric-me", { maxRequests: 30, windowMs: 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -41,13 +46,13 @@ serve(async (req) => {
       email: user.email ?? "",
     }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: secureHeaders,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to fetch biometric state";
+    const message = safeErrorMessage(error, "Unable to fetch biometric state");
     return new Response(JSON.stringify({ error: message }), {
-      status: message === "Unauthorized" ? 401 : 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: errorStatus(message),
+      headers: secureHeaders,
     });
   }
 });

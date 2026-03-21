@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireEmbedding, requireLiveness, requireString, ValidationError } from "../_shared/validation.ts";
 import {
   assertValidConsentText,
   assertValidEmbedding,
@@ -15,19 +18,24 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Stricter limit: 10 attempts per minute to prevent brute-force
+  const rl = checkRateLimit(req, "biometric-verify", { maxRequests: 10, windowMs: 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { embedding: rawEmbedding, liveness, consentText: rawConsentText } = await req.json();
+    const body = await req.json();
 
-    const embedding = assertValidEmbedding(rawEmbedding);
-    const consentText = assertValidConsentText(rawConsentText);
+    const embedding = requireEmbedding(body.embedding);
+    const liveness = requireLiveness(body.liveness);
+    const consentText = requireString(body.consentText, "consentText", 2000);
 
     if (!hasRequiredChallenges(liveness, ["blink"])) {
-      throw new Error("Liveness verification failed");
+      throw new ValidationError("Liveness verification failed");
     }
 
     const { data: stored, error: storedError } = await admin
@@ -54,9 +62,9 @@ serve(async (req) => {
       status: verified ? "success" : "failed_match",
       confidence: Number(confidence.toFixed(4)),
       details: {
-        blinkDetected: Boolean(liveness?.blinkDetected),
-        completedChallenges: liveness?.completedChallenges ?? [],
-        sampleCount: liveness?.sampleCount ?? 0,
+        blinkDetected: Boolean(liveness.blinkDetected),
+        completedChallenges: liveness.completedChallenges,
+        sampleCount: liveness.sampleCount,
       },
     });
     if (loginAttemptError) throw loginAttemptError;
@@ -66,13 +74,13 @@ serve(async (req) => {
       confidence: Number(confidence.toFixed(4)),
     }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: secureHeaders,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Verification failed";
+    const message = safeErrorMessage(error, "Verification failed");
     return new Response(JSON.stringify({ error: message }), {
-      status: message === "Unauthorized" ? 401 : 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: errorStatus(message),
+      headers: secureHeaders,
     });
   }
 });
