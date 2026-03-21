@@ -25,17 +25,12 @@ serve(async (req) => {
 
     const alertId = requireUUID(body.alertId, "alertId");
 
-    const { data: alert, error: fetchError } = await admin
-      .from("suspicious_activity_alerts")
-      .select("user_id")
-      .eq("id", alertId)
-      .maybeSingle();
-    if (fetchError) throw fetchError;
-    if (!alert) throw new Error("Alert not found");
-    if (!isAdmin && alert.user_id !== user.id) throw new Error("Forbidden");
-
-    const update = isAdmin ? { acknowledged_by_admin: true } : { acknowledged_by_user: true };
-    const { error } = await admin.from("suspicious_activity_alerts").update(update).eq("id", alertId);
+    // Use security definer function to prevent privilege escalation
+    // (users cannot set acknowledged_by_admin, admins cannot impersonate users)
+    const { error } = await admin.rpc("acknowledge_alert", {
+      _alert_id: alertId,
+      _is_admin: isAdmin,
+    });
     if (error) throw error;
 
     return new Response(JSON.stringify({ success: true }), {
