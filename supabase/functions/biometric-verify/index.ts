@@ -4,6 +4,8 @@ import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/securit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireEmbedding, requireLiveness, requireString, ValidationError } from "../_shared/validation.ts";
 import {
+  assertValidConsentText,
+  assertValidEmbedding,
   cosineSimilarity,
   decryptEmbedding,
   getAdminClient,

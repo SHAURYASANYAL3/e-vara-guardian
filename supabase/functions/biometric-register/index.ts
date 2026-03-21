@@ -4,6 +4,8 @@ import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/securit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireEmbedding, requireAngles, requireLiveness, requireString, optionalString, ValidationError } from "../_shared/validation.ts";
 import {
+  assertValidConsentText,
+  assertValidEmbedding,
   createDuplicateAlerts,
   cosineSimilarity,
   decryptEmbedding,
@@ -11,6 +13,8 @@ import {
   getAdminClient,
   getAuthenticatedUser,
   hasRequiredChallenges,
+  parseAnglesCompleted,
+  parseProfileInput,
 } from "../_shared/biometric.ts";
 
 serve(async (req) => {

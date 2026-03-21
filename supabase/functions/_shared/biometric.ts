@@ -2,10 +2,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const BIOMETRIC_ENCRYPTION_KEY = Deno.env.get("BIOMETRIC_ENCRYPTION_KEY")!;
+function requireEnv(name: string) {
+  const value = Deno.env.get(name);
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const SUPABASE_URL = requireEnv("SUPABASE_URL");
+const SUPABASE_ANON_KEY = requireEnv("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+const BIOMETRIC_ENCRYPTION_KEY = requireEnv("BIOMETRIC_ENCRYPTION_KEY");
 
 export type AppRole = "admin" | "user";
 
@@ -142,4 +150,70 @@ export async function createDuplicateAlerts(
 
   const { error } = await adminClient.from("suspicious_activity_alerts").insert(rows);
   if (error) throw error;
+}
+
+
+function cleanText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized ? normalized.slice(0, maxLength) : null;
+}
+
+export function assertValidEmbedding(embedding: unknown) {
+  if (!Array.isArray(embedding) || embedding.length !== 128 || !embedding.every((value) => typeof value === "number" && Number.isFinite(value))) {
+    throw new Error("A valid face embedding is required");
+  }
+  return embedding as number[];
+}
+
+export function assertValidConsentText(value: unknown) {
+  const consentText = cleanText(value, 500);
+  if (!consentText) throw new Error("Consent text is required");
+  return consentText;
+}
+
+export function parseProfileInput(input: unknown) {
+  const profile = (input && typeof input === "object") ? input as Record<string, unknown> : {};
+  const displayName = cleanText(profile.displayName, 80);
+  const username = cleanText(profile.username, 32);
+  const socialLink = cleanText(profile.socialLink, 300);
+  const keywords = cleanText(profile.keywords, 300);
+
+  if (socialLink) {
+    try {
+      const url = new URL(socialLink);
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error("invalid");
+    } catch {
+      throw new Error("A valid http(s) social link is required");
+    }
+  }
+
+  if (username && !/^[a-zA-Z0-9._-]{3,32}$/.test(username)) {
+    throw new Error("Username must be 3-32 characters and only use letters, numbers, dots, underscores, or hyphens");
+  }
+
+  return {
+    display_name: displayName,
+    username,
+    social_link: socialLink,
+    keywords,
+  };
+}
+
+export function parseAlertId(value: unknown) {
+  const alertId = cleanText(value, 64);
+  if (!alertId || !/^[0-9a-fA-F-]{36}$/.test(alertId)) {
+    throw new Error("A valid alert id is required");
+  }
+  return alertId;
+}
+
+export function parseAnglesCompleted(value: unknown) {
+  const allowed = new Set(["front", "turn_left", "turn_right"]);
+  if (!Array.isArray(value)) throw new Error("Front, left, and right enrollment angles are required");
+  const unique = [...new Set(value.filter((item): item is string => typeof item === "string"))];
+  if (!["front", "turn_left", "turn_right"].every((angle) => unique.includes(angle)) || unique.some((angle) => !allowed.has(angle))) {
+    throw new Error("Front, left, and right enrollment angles are required");
+  }
+  return unique;
 }
