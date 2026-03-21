@@ -232,6 +232,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      acknowledge_alert: {
+        Args: { _alert_id: string; _is_admin: boolean }
+        Returns: undefined
+      }
       has_biometric_consent: {
         Args: {
           _action: Database["public"]["Enums"]["biometric_action"]
