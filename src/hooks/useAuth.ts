@@ -108,7 +108,7 @@ export function useAuth() {
     displayName: string;
   }) => {
     if (payload.password !== payload.confirmPassword) return { error: "Passwords do not match", hasSession: false };
-    if (payload.password.length < 6) return { error: "Password must be at least 6 characters", hasSession: false };
+    if (payload.password.length < 8) return { error: "Password must be at least 8 characters", hasSession: false };
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,
