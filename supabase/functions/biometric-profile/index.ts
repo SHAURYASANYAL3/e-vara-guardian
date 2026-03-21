@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { getAdminClient, getAuthenticatedUser } from "../_shared/biometric.ts";
+import { getAdminClient, getAuthenticatedUser, parseProfileInput } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,14 +13,14 @@ serve(async (req) => {
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { displayName, username, socialLink, keywords } = await req.json();
+    const payload = parseProfileInput(await req.json());
 
     const { error } = await admin.from("profiles").upsert({
       user_id: user.id,
-      display_name: displayName ?? user.email?.split("@")[0] ?? "Protected User",
-      username: username ?? null,
-      social_link: socialLink ?? null,
-      keywords: keywords ?? null,
+      display_name: payload.display_name ?? user.email?.split("@")[0] ?? "Protected User",
+      username: payload.username,
+      social_link: payload.social_link,
+      keywords: payload.keywords,
     }, { onConflict: "user_id" });
 
     if (error) throw error;

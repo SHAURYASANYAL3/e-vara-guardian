@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { getAdminClient, getAuthenticatedUser, getUserRoles } from "../_shared/biometric.ts";
+import { getAdminClient, getAuthenticatedUser, getUserRoles, parseAlertId } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -15,7 +15,8 @@ serve(async (req) => {
     const admin = getAdminClient();
     const roles = await getUserRoles(admin, user.id);
     const isAdmin = roles.includes("admin");
-    const { alertId } = await req.json();
+    const { alertId: rawAlertId } = await req.json();
+    const alertId = parseAlertId(rawAlertId);
 
     const { data: alert, error: fetchError } = await admin
       .from("suspicious_activity_alerts")

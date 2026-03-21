@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  assertValidConsentText,
+  assertValidEmbedding,
   createDuplicateAlerts,
   cosineSimilarity,
   decryptEmbedding,
@@ -8,6 +10,8 @@ import {
   getAdminClient,
   getAuthenticatedUser,
   hasRequiredChallenges,
+  parseAnglesCompleted,
+  parseProfileInput,
 } from "../_shared/biometric.ts";
 
 serve(async (req) => {
@@ -21,15 +25,12 @@ serve(async (req) => {
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { embedding, anglesCompleted, liveness, consentText, profile } = await req.json();
+    const { embedding: rawEmbedding, anglesCompleted: rawAnglesCompleted, liveness, consentText: rawConsentText, profile } = await req.json();
 
-    if (!Array.isArray(embedding) || embedding.length !== 128) {
-      throw new Error("A valid face embedding is required");
-    }
-
-    if (!Array.isArray(anglesCompleted) || !["front", "turn_left", "turn_right"].every((angle) => anglesCompleted.includes(angle))) {
-      throw new Error("Front, left, and right enrollment angles are required");
-    }
+    const embedding = assertValidEmbedding(rawEmbedding);
+    const anglesCompleted = parseAnglesCompleted(rawAnglesCompleted);
+    const consentText = assertValidConsentText(rawConsentText);
+    const normalizedProfile = parseProfileInput(profile);
 
     if (!hasRequiredChallenges(liveness, ["blink", "turn_left", "turn_right"])) {
       throw new Error("Liveness verification failed during enrollment");
@@ -39,10 +40,10 @@ serve(async (req) => {
 
     const { error: profileError } = await admin.from("profiles").upsert({
       user_id: user.id,
-      display_name: profile?.displayName ?? user.email?.split("@")[0] ?? "Protected User",
-      username: profile?.username ?? null,
-      social_link: profile?.socialLink ?? null,
-      keywords: profile?.keywords ?? null,
+      display_name: normalizedProfile.display_name ?? user.email?.split("@")[0] ?? "Protected User",
+      username: normalizedProfile.username,
+      social_link: normalizedProfile.social_link,
+      keywords: normalizedProfile.keywords,
     }, { onConflict: "user_id" });
     if (profileError) throw profileError;
 

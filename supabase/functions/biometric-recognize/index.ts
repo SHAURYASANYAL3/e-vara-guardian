@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  assertValidEmbedding,
   createDuplicateAlerts,
   cosineSimilarity,
   decryptEmbedding,
@@ -19,11 +20,9 @@ serve(async (req) => {
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { embedding } = await req.json();
+    const { embedding: rawEmbedding } = await req.json();
 
-    if (!Array.isArray(embedding) || embedding.length !== 128) {
-      throw new Error("A valid face embedding is required");
-    }
+    const embedding = assertValidEmbedding(rawEmbedding);
 
     const { data: rows, error } = await admin
       .from("face_embeddings")

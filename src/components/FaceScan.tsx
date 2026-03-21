@@ -8,6 +8,7 @@ import {
   detectFaceSnapshot,
   formatConfidence,
   loadFaceModels,
+  requestUserCamera,
   type BiometricChallenge,
 } from "@/lib/biometrics";
 
@@ -34,6 +35,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const embeddingsRef = useRef<number[][]>([]);
+  const snapshotInFlightRef = useRef(false);
   const blinkArmedRef = useRef(false);
   const stableFramesRef = useRef(0);
   const [active, setActive] = useState(false);
@@ -59,6 +61,13 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
 
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    snapshotInFlightRef.current = false;
     setActive(false);
   }, []);
 
@@ -90,42 +99,51 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
   }, [active, completedChallenges, finish, sequence.length]);
 
   const handleSnapshot = useCallback(async () => {
-    if (!videoRef.current || !currentChallenge) return;
+    if (!videoRef.current || !currentChallenge || snapshotInFlightRef.current) return;
 
-    const snapshot = await detectFaceSnapshot(videoRef.current);
-    if (!snapshot) {
-      stableFramesRef.current = 0;
-      return;
-    }
+    snapshotInFlightRef.current = true;
 
-    setConfidence(snapshot.confidence);
-    setSampleCount((count) => count + 1);
-
-    if (currentChallenge === "blink") {
-      if (snapshot.eyeAspectRatio > OPEN_EYE_THRESHOLD) {
-        blinkArmedRef.current = true;
+    try {
+      const snapshot = await detectFaceSnapshot(videoRef.current);
+      if (!snapshot) {
+        stableFramesRef.current = 0;
+        return;
       }
 
-      if (blinkArmedRef.current && snapshot.eyeAspectRatio < CLOSED_EYE_THRESHOLD) {
-        setBlinkDetected(true);
-        setCompletedChallenges((current) => [...current, "blink"]);
+      setConfidence(snapshot.confidence);
+      setSampleCount((count) => count + 1);
+
+      if (currentChallenge === "blink") {
+        if (snapshot.eyeAspectRatio > OPEN_EYE_THRESHOLD) {
+          blinkArmedRef.current = true;
+        }
+
+        if (blinkArmedRef.current && snapshot.eyeAspectRatio < CLOSED_EYE_THRESHOLD) {
+          setBlinkDetected(true);
+          setCompletedChallenges((current) => [...current, "blink"]);
+        }
+
+        return;
       }
 
-      return;
-    }
+      if (snapshot.direction === currentChallenge) {
+        stableFramesRef.current += 1;
+      } else {
+        stableFramesRef.current = 0;
+      }
 
-    if (snapshot.direction === currentChallenge) {
-      stableFramesRef.current += 1;
-    } else {
-      stableFramesRef.current = 0;
+      if (stableFramesRef.current >= 3) {
+        embeddingsRef.current.push(snapshot.embedding);
+        setCompletedChallenges((current) => [...current, currentChallenge]);
+        stableFramesRef.current = 0;
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Face detection failed");
+      stop();
+    } finally {
+      snapshotInFlightRef.current = false;
     }
-
-    if (stableFramesRef.current >= 3) {
-      embeddingsRef.current.push(snapshot.embedding);
-      setCompletedChallenges((current) => [...current, currentChallenge]);
-      stableFramesRef.current = 0;
-    }
-  }, [currentChallenge]);
+  }, [currentChallenge, stop]);
 
   const start = useCallback(async () => {
     if (!consentGranted) {
@@ -145,10 +163,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
       stableFramesRef.current = 0;
 
       await loadFaceModels();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      const stream = await requestUserCamera();
 
       streamRef.current = stream;
       if (videoRef.current) {
