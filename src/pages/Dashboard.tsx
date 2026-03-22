@@ -20,6 +20,7 @@ const Dashboard = () => {
   const [monitoringActive, setMonitoringActive] = useState(false);
   const [monitoringStart, setMonitoringStart] = useState<Date | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const handleProfileSave = useCallback((data: { displayName: string; username: string; socialLink: string; keywords: string }) => {
     return saveProfile(data);
