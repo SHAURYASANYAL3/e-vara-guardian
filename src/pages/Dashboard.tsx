@@ -35,6 +35,14 @@ const Dashboard = () => {
     setMonitoringStart(startTime);
   }, []);
 
+  if (showAdmin) {
+    return (
+      <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background"><p className="text-sm font-mono text-muted-foreground">Loading...</p></div>}>
+        <AdminDashboard onBack={() => setShowAdmin(false)} />
+      </Suspense>
+    );
+  }
+
   if (showHistory) {
     return <AlertHistory alerts={monitoringAlerts} onBack={() => setShowHistory(false)} />;
   }
