@@ -1,5 +1,7 @@
-import { useState, useCallback } from "react";
-import { Shield, LogOut, History, Sun, Moon } from "lucide-react";
+import { useState, useCallback, lazy, Suspense } from "react";
+import { Shield, LogOut, History, Sun, Moon, ShieldAlert } from "lucide-react";
+
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import IdentityForm from "@/components/IdentityForm";

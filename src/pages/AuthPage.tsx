@@ -231,7 +231,15 @@ const AuthPage = () => {
             </div>
           )}
 
-          <p className="mt-6 text-center text-xs font-body text-muted-foreground">
+          {mode === "login" && (
+            <p className="mt-4 text-center">
+              <a href="/forgot-password" className="text-xs font-mono text-primary hover:underline">
+                Forgot your password?
+              </a>
+            </p>
+          )}
+
+          <p className="mt-4 text-center text-xs font-body text-muted-foreground">
             {mode === "login" ? "Need a protected account?" : "Already have an account?"}{" "}
             <button
               onClick={() => {
