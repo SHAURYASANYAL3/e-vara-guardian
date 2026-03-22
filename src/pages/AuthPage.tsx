@@ -2,6 +2,7 @@ import { type FormEvent, useState } from "react";
 import { Eye, Shield } from "lucide-react";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
 import { useAuth } from "@/hooks/useAuth";
+import { lovable } from "@/integrations/lovable/index";
 
 const CONSENT_TEXT = "I consent to live biometric processing for face authentication and secure storage of encrypted face embeddings only.";
 
