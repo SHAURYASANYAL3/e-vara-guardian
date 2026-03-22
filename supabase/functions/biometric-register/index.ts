@@ -4,8 +4,6 @@ import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/securit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireEmbedding, requireAngles, requireLiveness, requireString, optionalString, ValidationError } from "../_shared/validation.ts";
 import {
-  assertValidConsentText,
-  assertValidEmbedding,
   createDuplicateAlerts,
   cosineSimilarity,
   decryptEmbedding,
@@ -13,9 +11,8 @@ import {
   getAdminClient,
   getAuthenticatedUser,
   hasRequiredChallenges,
-  parseAnglesCompleted,
-  parseProfileInput,
 } from "../_shared/biometric.ts";
+import { logAuditEvent, getClientIp } from "../_shared/audit.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -31,6 +28,7 @@ serve(async (req) => {
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
+    const ip = getClientIp(req);
     const body = await req.json();
 
     const embedding = requireEmbedding(body.embedding);
@@ -91,6 +89,18 @@ serve(async (req) => {
     }
 
     await createDuplicateAlerts(admin, user.id, duplicateMatches);
+
+    await logAuditEvent(user.id, "biometric.enroll", {
+      anglesCompleted,
+      duplicateMatches: duplicateMatches.length,
+    }, ip);
+
+    if (duplicateMatches.length > 0) {
+      await logAuditEvent(user.id, "biometric.duplicate_detected", {
+        matchCount: duplicateMatches.length,
+        matchedUserIds: duplicateMatches.map((m) => m.userId),
+      }, ip);
+    }
 
     return new Response(JSON.stringify({
       enrolled: true,
