@@ -1,7 +1,8 @@
 import { useState, useCallback, lazy, Suspense } from "react";
-import { Shield, LogOut, History, Sun, Moon, ShieldAlert } from "lucide-react";
+import { Shield, LogOut, History, Sun, Moon, ShieldAlert, UserCircle } from "lucide-react";
 
 const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
+const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import IdentityForm from "@/components/IdentityForm";
@@ -20,6 +21,7 @@ const Dashboard = () => {
   const [monitoringActive, setMonitoringActive] = useState(false);
   const [monitoringStart, setMonitoringStart] = useState<Date | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
 
   const handleProfileSave = useCallback((data: { displayName: string; username: string; socialLink: string; keywords: string }) => {
@@ -34,6 +36,14 @@ const Dashboard = () => {
     setMonitoringActive(active);
     setMonitoringStart(startTime);
   }, []);
+
+  if (showProfile) {
+    return (
+      <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background"><p className="text-sm font-mono text-muted-foreground">Loading...</p></div>}>
+        <ProfilePage onBack={() => setShowProfile(false)} />
+      </Suspense>
+    );
+  }
 
   if (showAdmin) {
     return (

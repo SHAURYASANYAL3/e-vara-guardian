@@ -78,7 +78,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex items-center gap-3 rounded-md border border-border bg-secondary/50 p-4">
               {isBiometricEnrolled ? (
-                <CheckCircle className="h-5 w-5 shrink-0 text-green-500" />
+                <CheckCircle className="h-5 w-5 shrink-0 text-primary" />
               ) : (
                 <XCircle className="h-5 w-5 shrink-0 text-destructive" />
               )}
@@ -89,7 +89,7 @@ const ProfilePage = ({ onBack }: ProfilePageProps) => {
             </div>
             <div className="flex items-center gap-3 rounded-md border border-border bg-secondary/50 p-4">
               {biometricVerified ? (
-                <CheckCircle className="h-5 w-5 shrink-0 text-green-500" />
+                <CheckCircle className="h-5 w-5 shrink-0 text-primary" />
               ) : (
                 <XCircle className="h-5 w-5 shrink-0 text-destructive" />
               )}
