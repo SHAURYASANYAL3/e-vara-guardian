@@ -54,9 +54,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
       videoRef.current.srcObject = null;
     }
 
-    requestInFlight.current = false;
-    snapshotInFlight.current = false;
-    consecutiveErrors.current = 0;
     setActive(false);
     setStatus("idle");
   }, []);
@@ -65,7 +62,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
 
   const pollRecognition = useCallback(async () => {
     if (!videoRef.current || requestInFlight.current || snapshotInFlight.current) return;
-    if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || videoRef.current.videoWidth === 0) return;
 
     snapshotInFlight.current = true;
 
@@ -77,8 +73,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
         return;
       }
 
-      consecutiveErrors.current = 0;
-      setError(null);
       requestInFlight.current = true;
       const { data, error: invokeError } = await supabase.functions.invoke("biometric-recognize", {
         body: { embedding: snapshot.embedding },
