@@ -121,9 +121,10 @@ export async function createDuplicateAlerts(
   userId: string,
   matches: Array<{ userId: string; confidence: number }>,
 ) {
-  if (!matches.length) return;
+  const uniqueMatches = dedupeMatches(matches).filter((match) => match.userId !== userId);
+  if (!uniqueMatches.length) return;
 
-  const rows = matches.flatMap((match) => [
+  const rows = uniqueMatches.flatMap((match) => [
     {
       user_id: userId,
       matched_user_id: match.userId,
@@ -142,4 +143,84 @@ export async function createDuplicateAlerts(
 
   const { error } = await adminClient.from("suspicious_activity_alerts").insert(rows);
   if (error) throw error;
+}
+
+
+export function assertPostMethod(req: Request) {
+  if (req.method !== "POST") {
+    throw new Error("Method not allowed");
+  }
+}
+
+export function assertValidEmbedding(embedding: unknown): asserts embedding is number[] {
+  if (!Array.isArray(embedding) || embedding.length !== 128 || embedding.some((value) => typeof value !== "number" || !Number.isFinite(value))) {
+    throw new Error("A valid face embedding is required");
+  }
+}
+
+export function assertValidConsentText(consentText: unknown) {
+  if (typeof consentText !== "string" || consentText.trim().length < 20 || consentText.length > 1000) {
+    throw new Error("A valid consent statement is required");
+  }
+}
+
+export function sanitizeTextInput(value: unknown, maxLength: number, { allowEmpty = false } = {}) {
+  if (typeof value !== "string") {
+    if (allowEmpty || value == null) return allowEmpty ? "" : null;
+    throw new Error("Invalid text input");
+  }
+
+  const normalized = value.trim().replace(/\s+/g, " ");
+  if (!normalized) return allowEmpty ? "" : null;
+  return normalized.slice(0, maxLength);
+}
+
+export function sanitizeOptionalUrl(value: unknown) {
+  const normalized = sanitizeTextInput(value, 2048);
+  if (!normalized) return null;
+
+  try {
+    const parsed = new URL(normalized);
+    if (!["https:", "http:"].includes(parsed.protocol)) throw new Error("Unsupported URL protocol");
+    return parsed.toString();
+  } catch {
+    throw new Error("A valid profile URL is required");
+  }
+}
+
+export function sanitizeUsername(value: unknown) {
+  const normalized = sanitizeTextInput(value, 32);
+  if (!normalized) return null;
+
+  const username = normalized.toLowerCase();
+  if (!/^[a-z0-9_][a-z0-9_.-]{1,31}$/.test(username)) {
+    throw new Error("Username may only contain lowercase letters, numbers, dots, hyphens, and underscores.");
+  }
+
+  return username;
+}
+
+export function sanitizeProfileInput(profile: { displayName?: unknown; username?: unknown; socialLink?: unknown; keywords?: unknown } | null | undefined, fallbackName: string) {
+  const displayName = sanitizeTextInput(profile?.displayName, 80) ?? fallbackName;
+  const username = sanitizeUsername(profile?.username);
+  const socialLink = sanitizeOptionalUrl(profile?.socialLink);
+  const keywords = sanitizeTextInput(profile?.keywords, 200);
+
+  return { display_name: displayName, username, social_link: socialLink, keywords };
+}
+
+export function assertValidUuid(value: unknown, fieldName: string) {
+  if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new Error(`Invalid ${fieldName}`);
+  }
+}
+
+export function dedupeMatches(matches: Array<{ userId: string; confidence: number }>) {
+  const seen = new Set<string>();
+  return matches.filter((match) => {
+    const key = `${match.userId}:${match.confidence.toFixed(4)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }

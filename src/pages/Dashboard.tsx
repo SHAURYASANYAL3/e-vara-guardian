@@ -39,8 +39,8 @@ const Dashboard = () => {
   const isSetupComplete = Boolean(profile?.displayName && profile?.username);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-10 border-b border-border bg-card/80 backdrop-blur-sm">
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-10 border-b border-border/70 bg-card/70 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2">
             <Shield className="h-5 w-5 shrink-0 text-primary" />
@@ -49,14 +49,14 @@ const Dashboard = () => {
           <div className="flex items-center gap-1.5 sm:gap-2">
             <button
               onClick={toggleTheme}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
+              className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
               aria-label="Toggle theme"
             >
               {theme === "dark" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
             </button>
             <button
               onClick={() => setShowHistory(true)}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
+              className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
             >
               <History className="h-3 w-3" />
               <span className="hidden sm:inline">History</span>
@@ -64,7 +64,7 @@ const Dashboard = () => {
             <span className="hidden text-xs font-mono text-muted-foreground lg:inline">{user?.email}</span>
             <button
               onClick={() => void logout()}
-              className="inline-flex items-center gap-1 rounded-md border border-border bg-secondary px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-colors hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
+              className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
             >
               <LogOut className="h-3 w-3" />
               <span className="hidden sm:inline">Logout</span>
@@ -74,7 +74,16 @@ const Dashboard = () => {
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
-        <div className="mb-4 sm:mb-6">
+        <div className="motion-enter mb-4 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-4 shadow-[0_20px_60px_-40px_hsl(var(--primary)/0.9)] sm:px-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-mono uppercase tracking-[0.3em] text-primary/80">Protected workspace</p>
+              <h2 className="mt-2 text-2xl font-mono font-bold tracking-tight text-foreground">Monitor identity threats in real time.</h2>
+            </div>
+            <p className="max-w-2xl text-sm text-muted-foreground">Animated status surfaces, biometric verification, and monitoring controls now feel more responsive and modern across the dashboard.</p>
+          </div>
+        </div>
+        <div className="motion-enter motion-enter-delay-1 mb-4 sm:mb-6">
           <StatsCards
             alertCount={alerts.length}
             scanCount={scanCount}
@@ -83,7 +92,7 @@ const Dashboard = () => {
           />
         </div>
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[360px_1fr]">
+        <div className="motion-enter motion-enter-delay-2 grid gap-4 sm:gap-6 lg:grid-cols-[360px_1fr]">
           <div className="space-y-4 lg:sticky lg:top-[57px] lg:self-start">
             <RecognitionPanel
               onRecognition={() => setScanCount((count) => count + 1)}
@@ -104,7 +113,7 @@ const Dashboard = () => {
                 onMonitoringChange={handleMonitoringChange}
               />
             ) : (
-              <div className="rounded-lg border border-border bg-card p-8 text-center sm:p-12">
+              <div className="glass-panel motion-enter hover-lift rounded-lg p-8 text-center sm:p-12">
                 <Shield className="mx-auto mb-4 h-8 w-8 text-muted-foreground" />
                 <p className="text-xs font-mono text-muted-foreground sm:text-sm">
                   Complete your identity profile to activate monitoring.
@@ -112,7 +121,7 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div className="rounded-lg border border-border bg-card p-4">
+            <div className="glass-panel motion-enter motion-enter-delay-3 rounded-lg p-4">
               <p className="text-center text-xs font-body leading-relaxed text-muted-foreground">
                 E-Vara now uses live-only face-api.js biometric verification, encrypted embeddings, and duplicate-identity alerts for protected access.
               </p>
