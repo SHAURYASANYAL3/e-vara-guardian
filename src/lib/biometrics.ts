@@ -208,3 +208,9 @@ export function formatConfidence(score: number) {
 export function hasValidEmbedding(embedding: number[]) {
   return Array.isArray(embedding) && embedding.length === 128 && embedding.every((value) => Number.isFinite(value));
 }
+
+export function isTransientFaceApiError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("no face") || msg.includes("tensor") || msg.includes("webgl") || msg.includes("dimension");
+}
