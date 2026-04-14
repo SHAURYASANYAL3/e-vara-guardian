@@ -39,7 +39,7 @@ const StatsCards = ({ alertCount, scanCount, monitoringActive, monitoringStartTi
       {cards.map((card, i) => (
         <div
           key={card.label}
-          className="rounded-lg border border-border bg-card p-3 sm:p-4 animate-fade-in"
+          className="glass-panel hover-lift rounded-lg p-3 sm:p-4 animate-fade-in"
           style={{ animationDelay: `${i * 100}ms`, animationFillMode: "both" }}
         >
           <div className="mb-1.5 sm:mb-2 flex items-center gap-1.5">

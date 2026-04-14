@@ -1,8 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
-  createDuplicateAlerts,
+  assertPostMethod,
+  assertValidEmbedding,
   cosineSimilarity,
+  createDuplicateAlerts,
+  dedupeMatches,
   decryptEmbedding,
   getAdminClient,
   getAuthenticatedUser,
@@ -14,6 +17,8 @@ serve(async (req) => {
   }
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
@@ -21,9 +26,7 @@ serve(async (req) => {
     const admin = getAdminClient();
     const { embedding } = await req.json();
 
-    if (!Array.isArray(embedding) || embedding.length !== 128) {
-      throw new Error("A valid face embedding is required");
-    }
+    assertValidEmbedding(embedding);
 
     const { data: rows, error } = await admin
       .from("face_embeddings")
@@ -51,7 +54,7 @@ serve(async (req) => {
     const suspiciousDuplicate = bestMatch.userId !== user.id && bestMatch.confidence >= 0.92;
 
     if (suspiciousDuplicate) {
-      await createDuplicateAlerts(admin, user.id, [{ userId: bestMatch.userId, confidence: bestMatch.confidence }]);
+      await createDuplicateAlerts(admin, user.id, dedupeMatches([{ userId: bestMatch.userId, confidence: bestMatch.confidence }]));
     }
 
     return new Response(JSON.stringify({

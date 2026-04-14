@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ScanFace, ShieldAlert, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { detectFaceSnapshot, formatConfidence, loadFaceModels } from "@/lib/biometrics";
+import { detectFaceSnapshot, formatConfidence, isTransientFaceApiError, loadFaceModels, requestUserCamera } from "@/lib/biometrics";
 
 interface RecognitionPanelProps {
   onRecognition?: () => void;
@@ -33,6 +33,8 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestInFlight = useRef(false);
+  const snapshotInFlight = useRef(false);
+  const consecutiveErrors = useRef(0);
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState<MatchStatus>("idle");
   const [confidence, setConfidence] = useState(0);
@@ -46,6 +48,15 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
 
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+    }
+
+    requestInFlight.current = false;
+    snapshotInFlight.current = false;
+    consecutiveErrors.current = 0;
     setActive(false);
     setStatus("idle");
   }, []);
@@ -53,18 +64,22 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
   useEffect(() => stop, [stop]);
 
   const pollRecognition = useCallback(async () => {
-    if (!videoRef.current || requestInFlight.current) return;
+    if (!videoRef.current || requestInFlight.current || snapshotInFlight.current) return;
+    if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || videoRef.current.videoWidth === 0) return;
 
-    const snapshot = await detectFaceSnapshot(videoRef.current);
-    if (!snapshot) {
-      setStatus("no_face");
-      setConfidence(0);
-      return;
-    }
-
-    requestInFlight.current = true;
+    snapshotInFlight.current = true;
 
     try {
+      const snapshot = await detectFaceSnapshot(videoRef.current);
+      if (!snapshot) {
+        setStatus("no_face");
+        setConfidence(0);
+        return;
+      }
+
+      consecutiveErrors.current = 0;
+      setError(null);
+      requestInFlight.current = true;
       const { data, error: invokeError } = await supabase.functions.invoke("biometric-recognize", {
         body: { embedding: snapshot.embedding },
       });
@@ -80,21 +95,31 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
         onSuspiciousMatch?.();
       }
     } catch (caught) {
-      setStatus("error");
-      setError(caught instanceof Error ? caught.message : "Recognition failed");
+      if (isTransientFaceApiError(caught)) {
+        consecutiveErrors.current += 1;
+        if (consecutiveErrors.current >= 5) {
+          setStatus("error");
+          setError("Recognition became unstable. Please restart recognition.");
+        } else {
+          setStatus("no_face");
+          setError("Recalibrating recognition stream…");
+        }
+      } else {
+        setStatus("error");
+        setError(caught instanceof Error ? caught.message : "Recognition failed");
+      }
     } finally {
       requestInFlight.current = false;
+      snapshotInFlight.current = false;
     }
   }, [onRecognition, onSuspiciousMatch]);
 
   const start = useCallback(async () => {
     try {
       setError(null);
+      consecutiveErrors.current = 0;
       await loadFaceModels();
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
+      const stream = await requestUserCamera();
 
       streamRef.current = stream;
       if (videoRef.current) {

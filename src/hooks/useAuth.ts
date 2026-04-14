@@ -126,15 +126,28 @@ export function useAuth() {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (!error) {
-      const { data } = await supabase.auth.getUser();
-      if (data.user) {
-        sessionStorage.removeItem(biometricFlagKey(data.user.id));
-        setBiometricVerifiedState(false);
-      }
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return "Email is required";
+
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+    if (error) return error.message;
+
+    const [{ data: userData }, { data: sessionData }] = await Promise.all([
+      supabase.auth.getUser(),
+      supabase.auth.getSession(),
+    ]);
+
+    if (!sessionData.session) {
+      return "Sign-in completed but no active session was found. Please try again.";
     }
-    return error?.message ?? null;
+
+    if (userData.user) {
+      sessionStorage.removeItem(biometricFlagKey(userData.user.id));
+      setBiometricVerifiedState(false);
+      setUser({ id: userData.user.id, email: userData.user.email ?? "" });
+    }
+
+    return null;
   }, []);
 
   const logout = useCallback(async () => {
