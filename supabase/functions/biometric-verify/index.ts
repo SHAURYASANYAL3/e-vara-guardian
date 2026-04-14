@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+  assertPostMethod,
+  assertValidConsentText,
+  assertValidEmbedding,
   cosineSimilarity,
   decryptEmbedding,
   getAdminClient,
@@ -14,6 +17,8 @@ serve(async (req) => {
   }
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
@@ -21,9 +26,8 @@ serve(async (req) => {
     const admin = getAdminClient();
     const { embedding, liveness, consentText } = await req.json();
 
-    if (!Array.isArray(embedding) || embedding.length !== 128) {
-      throw new Error("A valid face embedding is required");
-    }
+    assertValidEmbedding(embedding);
+    assertValidConsentText(consentText);
 
     if (!hasRequiredChallenges(liveness, ["blink"])) {
       throw new Error("Liveness verification failed");

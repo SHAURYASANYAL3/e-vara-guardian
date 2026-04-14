@@ -70,9 +70,14 @@ const BiometricGate = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-3xl space-y-6">
-        <div className="flex items-center justify-between gap-3">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute left-0 top-0 h-72 w-72 rounded-full bg-primary/15 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-72 w-72 rounded-full bg-accent/10 blur-3xl" />
+      </div>
+
+      <div className="relative w-full max-w-3xl space-y-6">
+        <div className="motion-enter flex items-center justify-between gap-3">
           <div>
             <div className="inline-flex items-center gap-2">
               <ShieldCheck className="h-6 w-6 text-primary" />
@@ -86,23 +91,23 @@ const BiometricGate = () => {
           </div>
           <button
             onClick={() => void logout()}
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-secondary px-3 py-2 text-xs font-mono text-muted-foreground transition-colors hover:text-foreground"
+            className="interactive-scale inline-flex items-center gap-2 rounded-md border border-border bg-secondary/90 px-3 py-2 text-xs font-mono text-muted-foreground transition-all duration-300 hover:text-foreground"
           >
             <LogOut className="h-3.5 w-3.5" />
             Sign out
           </button>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+        <div className="motion-enter motion-enter-delay-1 grid gap-6 lg:grid-cols-[1fr_320px]">
           <FaceScan mode={mode} consentGranted={consentChecked} onComplete={setScanResult} />
 
-          <div className="rounded-lg border border-border bg-card p-6">
+          <div className="glass-panel hover-lift rounded-lg p-6">
             <h2 className="text-sm font-mono font-semibold uppercase tracking-wider text-foreground">Consent & Secure Processing</h2>
             <p className="mt-3 text-sm font-body leading-relaxed text-muted-foreground">
               Live camera input only. No uploads. No URLs. No raw face images are stored — only encrypted biometric embeddings.
             </p>
 
-            <label className="mt-4 flex items-start gap-3 rounded-md border border-border bg-secondary p-3">
+            <label className="interactive-scale mt-4 flex items-start gap-3 rounded-md border border-border bg-secondary/90 p-3">
               <input
                 type="checkbox"
                 checked={consentChecked}
@@ -115,7 +120,7 @@ const BiometricGate = () => {
             <button
               onClick={() => void handleSubmit()}
               disabled={!scanResult || !consentChecked || submitting}
-              className="mt-4 w-full rounded-md bg-primary px-4 py-2.5 text-sm font-mono font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="interactive-scale mt-4 w-full rounded-md bg-primary px-4 py-2.5 text-sm font-mono font-medium text-primary-foreground transition-all duration-300 hover:opacity-90 hover:shadow-[0_18px_40px_-20px_hsl(var(--primary)/0.9)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? "Processing..." : mode === "enroll" ? "Store Encrypted Embedding" : "Verify Live Face"}
             </button>

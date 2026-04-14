@@ -8,6 +8,8 @@ serve(async (req) => {
   }
 
   try {
+    if (!["GET", "POST"].includes(req.method)) throw new Error("Method not allowed");
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
@@ -46,7 +48,7 @@ serve(async (req) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to fetch biometric state";
     return new Response(JSON.stringify({ error: message }), {
-      status: message === "Unauthorized" ? 401 : 400,
+      status: message === "Unauthorized" ? 401 : message === "Method not allowed" ? 405 : 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

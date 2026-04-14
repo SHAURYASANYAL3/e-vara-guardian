@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { getAdminClient, getAuthenticatedUser, getUserRoles } from "../_shared/biometric.ts";
+import { assertPostMethod, assertValidUuid, getAdminClient, getAuthenticatedUser, getUserRoles } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -8,6 +8,8 @@ serve(async (req) => {
   }
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
@@ -16,6 +18,7 @@ serve(async (req) => {
     const roles = await getUserRoles(admin, user.id);
     const isAdmin = roles.includes("admin");
     const { alertId } = await req.json();
+    assertValidUuid(alertId, "alert id");
 
     const { data: alert, error: fetchError } = await admin
       .from("suspicious_activity_alerts")

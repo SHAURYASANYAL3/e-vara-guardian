@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { getAdminClient, getAuthenticatedUser } from "../_shared/biometric.ts";
+import { assertPostMethod, getAdminClient, getAuthenticatedUser, sanitizeProfileInput } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -8,19 +8,19 @@ serve(async (req) => {
   }
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { displayName, username, socialLink, keywords } = await req.json();
+    const payload = await req.json();
+    const profile = sanitizeProfileInput(payload, user.email?.split("@")[0] ?? "Protected User");
 
     const { error } = await admin.from("profiles").upsert({
       user_id: user.id,
-      display_name: displayName ?? user.email?.split("@")[0] ?? "Protected User",
-      username: username ?? null,
-      social_link: socialLink ?? null,
-      keywords: keywords ?? null,
+      ...profile,
     }, { onConflict: "user_id" });
 
     if (error) throw error;
