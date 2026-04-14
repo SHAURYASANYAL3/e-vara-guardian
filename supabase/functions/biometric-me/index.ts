@@ -13,6 +13,8 @@ serve(async (req) => {
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
 
   try {
+    if (!["GET", "POST"].includes(req.method)) throw new Error("Method not allowed");
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 

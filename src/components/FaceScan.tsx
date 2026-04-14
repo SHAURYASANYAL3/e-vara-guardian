@@ -7,6 +7,7 @@ import {
   createVerificationSequence,
   detectFaceSnapshot,
   formatConfidence,
+  isTransientFaceApiError,
   loadFaceModels,
   requestUserCamera,
   type BiometricChallenge,
@@ -38,6 +39,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
   const snapshotInFlightRef = useRef(false);
   const blinkArmedRef = useRef(false);
   const stableFramesRef = useRef(0);
+  const consecutiveErrorsRef = useRef(0);
   const [active, setActive] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,6 +162,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
       embeddingsRef.current = [];
       blinkArmedRef.current = false;
       stableFramesRef.current = 0;
+      consecutiveErrorsRef.current = 0;
 
       await loadFaceModels();
       const stream = await requestUserCamera();

@@ -1,10 +1,35 @@
 import { type FormEvent, useState } from "react";
 import { Eye, Shield } from "lucide-react";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
+import FeatureCard from "@/components/landing/FeatureCard";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { lovable } from "@/integrations/lovable/index";
 
+const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
+
 const CONSENT_TEXT = "I consent to live biometric processing for face authentication and secure storage of encrypted face embeddings only.";
+
+const featureCards = [
+  {
+    title: "Adaptive biometric access",
+    description: "Live enrollment and verification flows combine liveness prompts, encrypted embeddings, and streamlined recovery states.",
+    icon: ScanFace,
+    accent: "#22d3ee",
+  },
+  {
+    title: "Glassmorphism security surfaces",
+    description: "Layered glass panels, glow gradients, and premium motion make every auth state feel tactile without sacrificing clarity.",
+    icon: Layers3,
+    accent: "#a78bfa",
+  },
+  {
+    title: "Privacy-first control plane",
+    description: "Protected account actions are framed with consent-first messaging and secure defaults tailored for sensitive identity workflows.",
+    icon: LockKeyhole,
+    accent: "#38bdf8",
+  },
+] as const;
 
 const AuthPage = () => {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -18,7 +43,18 @@ const AuthPage = () => {
   const [consentChecked, setConsentChecked] = useState(false);
   const [scanResult, setScanResult] = useState<BiometricScanResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const { register, login, setBiometricVerified } = useAuth();
+  const isMobile = useIsMobile();
+
+  const stats = useMemo(
+    () => [
+      { label: "Identity confidence", value: "99.2%" },
+      { label: "Runtime feel", value: "60 FPS" },
+      { label: "Fraud detection", value: "Real time" },
+    ],
+    [],
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -87,7 +123,6 @@ const AuthPage = () => {
               <Shield className="h-8 w-8 text-primary" />
               <h1 className="text-2xl font-mono font-bold tracking-tight text-foreground">E-Vara</h1>
             </div>
-            <p className="text-sm font-body text-muted-foreground">Live-only biometric access and identity protection.</p>
           </div>
 
           <h2 className="mb-6 text-lg font-mono font-semibold text-foreground">
@@ -106,7 +141,6 @@ const AuthPage = () => {
                   placeholder="Jane Doe"
                 />
               </div>
-            )}
 
             <div>
               <label className="mb-1.5 block text-xs font-mono uppercase tracking-wider text-muted-foreground">Email</label>
@@ -135,7 +169,6 @@ const AuthPage = () => {
                   <Eye className="h-4 w-4" />
                 </button>
               </div>
-            </div>
 
             {mode === "register" && (
               <>
@@ -150,6 +183,8 @@ const AuthPage = () => {
                     placeholder="••••••••"
                   />
                 </div>
+              </div>
+            </motion.div>
 
                 <label className="interactive-scale flex items-start gap-3 rounded-md border border-border bg-secondary/90 p-3">
                   <input
@@ -272,12 +307,174 @@ const AuthPage = () => {
                   <div key={item} className="interactive-scale rounded-md border border-border bg-secondary/90 px-4 py-6 text-center text-xs font-mono text-foreground">
                     {item}
                   </div>
-                ))}
+
+                  <div>
+                    <label className="mb-1.5 block text-xs uppercase tracking-[0.22em] text-slate-400">Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="auth-input pr-12"
+                        placeholder="••••••••"
+                      />
+                      <button type="button" onClick={() => setShowPassword((open) => !open)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-white">
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {mode === "register" && (
+                    <>
+                      <div>
+                        <label className="mb-1.5 block text-xs uppercase tracking-[0.22em] text-slate-400">Confirm password</label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          required
+                          className="auth-input"
+                          placeholder="••••••••"
+                        />
+                      </div>
+
+                      <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                        <input
+                          type="checkbox"
+                          checked={consentChecked}
+                          onChange={(e) => setConsentChecked(e.target.checked)}
+                          className="mt-1 h-4 w-4 rounded border-white/15 bg-slate-950 text-cyan-400"
+                        />
+                        <span>{CONSENT_TEXT}</span>
+                      </label>
+                    </>
+                  )}
+
+                  {error && <p className="text-sm text-rose-300">{error}</p>}
+                  {notice && <p className="text-sm text-cyan-300">{notice}</p>}
+
+                  <button
+                    type="submit"
+                    disabled={submitting || (mode === "register" && (!scanResult || !consentChecked))}
+                    className="cta-button"
+                  >
+                    <span>{submitting ? "Processing…" : mode === "login" ? "Enter workspace" : "Create secure account"}</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </form>
+
+                <p className="mt-6 text-center text-sm text-slate-400">
+                  {mode === "login" ? "Need a protected account?" : "Already have an account?"}{" "}
+                  <button
+                    onClick={() => {
+                      setMode(mode === "login" ? "register" : "login");
+                      setError("");
+                      setNotice("");
+                    }}
+                    className="font-medium text-cyan-300 transition-opacity hover:opacity-80"
+                  >
+                    {mode === "login" ? "Register" : "Sign in"}
+                  </button>
+                </p>
               </div>
+
+              <div className="glass-panel rounded-[2rem] p-6">
+                {mode === "register" ? (
+                  <FaceScan mode="enroll" consentGranted={consentChecked} onComplete={setScanResult} />
+                ) : (
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">Biometric checkpoint</p>
+                    <h3 className="mt-2 text-xl font-semibold text-white">3D-forward trust, operationally grounded.</h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-300">
+                      Password sign-in is followed by a live webcam biometric verification pass with liveness checks before workspace access is granted.
+                    </p>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                      {[
+                        "Live webcam only",
+                        "Hover-reactive 3D hero",
+                        "Encrypted embeddings",
+                      ].map((item) => (
+                        <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-center text-xs uppercase tracking-[0.22em] text-slate-200">
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6 }}
+            className="mx-auto max-w-3xl text-center"
+          >
+            <p className="text-xs uppercase tracking-[0.3em] text-cyan-200/80">Features</p>
+            <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Reusable premium sections with smooth depth and motion.</h2>
+            <p className="mt-4 text-base leading-8 text-slate-300">
+              The landing system is built from reusable components, lazy-loaded 3D rendering, and motion-controlled cards to keep the UI futuristic yet maintainable.
+            </p>
+          </motion.div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-3">
+            {featureCards.map((card, index) => (
+              <FeatureCard
+                key={card.title}
+                title={card.title}
+                description={card.description}
+                icon={card.icon}
+                accent={card.accent}
+                delay={index * 0.1}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section id="cta" className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.6 }}
+            className="glass-panel relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10"
+          >
+            <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.18),transparent_60%)]" />
+            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">Call to action</p>
+                <h2 className="mt-3 text-3xl font-semibold text-white">Launch a security workflow that looks as advanced as it feels.</h2>
+                <p className="mt-4 text-base leading-8 text-slate-300">
+                  The 3D hero is lazy-loaded, responsive, and pointer-reactive. On mobile, it falls back to a lightweight CSS orb so the page stays smooth without heavy rendering.
+                </p>
+              </div>
+              <button
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                className="cta-button max-w-fit"
+              >
+                <WandSparkles className="h-4 w-4" />
+                <span>Back to access</span>
+              </button>
             </div>
-          )}
+          </motion.div>
+        </section>
+      </main>
+
+      <footer className="border-t border-white/10 bg-slate-950/70">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <p>© 2026 E-Vara. Premium biometric access surfaces for modern identity workflows.</p>
+          <div className="flex items-center gap-4">
+            <span>React + Tailwind</span>
+            <span>React Three Fiber</span>
+            <span>Framer Motion</span>
+          </div>
         </div>
-      </div>
+      </footer>
     </div>
   );
 };

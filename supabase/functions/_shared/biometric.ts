@@ -129,9 +129,10 @@ export async function createDuplicateAlerts(
   userId: string,
   matches: Array<{ userId: string; confidence: number }>,
 ) {
-  if (!matches.length) return;
+  const uniqueMatches = dedupeMatches(matches).filter((match) => match.userId !== userId);
+  if (!uniqueMatches.length) return;
 
-  const rows = matches.flatMap((match) => [
+  const rows = uniqueMatches.flatMap((match) => [
     {
       user_id: userId,
       matched_user_id: match.userId,

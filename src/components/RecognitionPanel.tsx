@@ -88,8 +88,19 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
         onSuspiciousMatch?.();
       }
     } catch (caught) {
-      setStatus("error");
-      setError(caught instanceof Error ? caught.message : "Recognition failed");
+      if (isTransientFaceApiError(caught)) {
+        consecutiveErrors.current += 1;
+        if (consecutiveErrors.current >= 5) {
+          setStatus("error");
+          setError("Recognition became unstable. Please restart recognition.");
+        } else {
+          setStatus("no_face");
+          setError("Recalibrating recognition stream…");
+        }
+      } else {
+        setStatus("error");
+        setError(caught instanceof Error ? caught.message : "Recognition failed");
+      }
     } finally {
       requestInFlight.current = false;
       snapshotInFlight.current = false;
@@ -99,6 +110,7 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
   const start = useCallback(async () => {
     try {
       setError(null);
+      consecutiveErrors.current = 0;
       await loadFaceModels();
       const stream = await requestUserCamera();
 

@@ -4,6 +4,9 @@ import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/securit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireEmbedding, requireLiveness, requireString, ValidationError } from "../_shared/validation.ts";
 import {
+  assertPostMethod,
+  assertValidConsentText,
+  assertValidEmbedding,
   cosineSimilarity,
   decryptEmbedding,
   getAdminClient,
@@ -22,6 +25,8 @@ serve(async (req) => {
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 

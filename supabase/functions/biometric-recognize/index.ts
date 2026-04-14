@@ -7,6 +7,8 @@ import {
   assertValidEmbedding,
   createDuplicateAlerts,
   cosineSimilarity,
+  createDuplicateAlerts,
+  dedupeMatches,
   decryptEmbedding,
   getAdminClient,
   getAuthenticatedUser,
@@ -22,6 +24,8 @@ serve(async (req) => {
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
@@ -57,7 +61,7 @@ serve(async (req) => {
     const suspiciousDuplicate = bestMatch.userId !== user.id && bestMatch.confidence >= 0.92;
 
     if (suspiciousDuplicate) {
-      await createDuplicateAlerts(admin, user.id, [{ userId: bestMatch.userId, confidence: bestMatch.confidence }]);
+      await createDuplicateAlerts(admin, user.id, dedupeMatches([{ userId: bestMatch.userId, confidence: bestMatch.confidence }]));
     }
 
     return new Response(JSON.stringify({
