@@ -12,7 +12,9 @@ import {
   encryptEmbedding,
   getAdminClient,
   getAuthenticatedUser,
+  dedupeMatches,
   hasRequiredChallenges,
+  sanitizeProfileInput,
 } from "../_shared/biometric.ts";
 import { logAuditEvent, getClientIp } from "../_shared/audit.ts";
 
@@ -51,6 +53,7 @@ serve(async (req) => {
     }
 
     const encrypted = await encryptEmbedding(embedding);
+    const sanitizedProfile = sanitizeProfileInput(profile, user.email?.split("@")[0] ?? "Protected User");
 
     const { error: profileError } = await admin.from("profiles").upsert({
       user_id: user.id,
@@ -92,7 +95,7 @@ serve(async (req) => {
       }
     }
 
-    await createDuplicateAlerts(admin, user.id, duplicateMatches);
+    await createDuplicateAlerts(admin, user.id, dedupeMatches(duplicateMatches));
 
     await logAuditEvent(user.id, "biometric.enroll", {
       anglesCompleted,

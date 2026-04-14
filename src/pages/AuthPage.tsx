@@ -8,6 +8,8 @@ import { lovable } from "@/integrations/lovable/index";
 
 const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
 
+const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
+
 const CONSENT_TEXT = "I consent to live biometric processing for face authentication and secure storage of encrypted face embeddings only.";
 
 const featureCards = [
@@ -43,6 +45,7 @@ const AuthPage = () => {
   const [consentChecked, setConsentChecked] = useState(false);
   const [scanResult, setScanResult] = useState<BiometricScanResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [pointer, setPointer] = useState({ x: 0, y: 0 });
   const { register, login, setBiometricVerified } = useAuth();
   const isMobile = useIsMobile();
 
@@ -100,6 +103,11 @@ const AuthPage = () => {
       } else {
         const loginError = await login(email, password);
         if (loginError) throw new Error(loginError);
+
+        setBiometricVerified(false);
+        setNotice("Login successful. Redirecting to biometric verification…");
+        window.location.assign("/");
+        return;
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Authentication failed");

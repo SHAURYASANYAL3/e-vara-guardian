@@ -58,7 +58,7 @@ serve(async (req) => {
     const suspiciousDuplicate = bestMatch.userId !== user.id && bestMatch.confidence >= 0.92;
 
     if (suspiciousDuplicate) {
-      await createDuplicateAlerts(admin, user.id, [{ userId: bestMatch.userId, confidence: bestMatch.confidence }]);
+      await createDuplicateAlerts(admin, user.id, dedupeMatches([{ userId: bestMatch.userId, confidence: bestMatch.confidence }]));
     }
 
     return new Response(JSON.stringify({
