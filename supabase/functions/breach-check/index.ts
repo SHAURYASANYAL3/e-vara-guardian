@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { assertPostMethod, getAuthenticatedUser, sanitizeTextInput } from "../_shared/biometric.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -80,9 +81,18 @@ serve(async (req) => {
   }
 
   try {
+    assertPostMethod(req);
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Unauthorized");
+    await getAuthenticatedUser(authHeader);
+
     const { email, username, fullName } = await req.json();
+    const sanitizedEmail = sanitizeTextInput(email, 254);
+    const sanitizedUsername = sanitizeTextInput(username, 64);
+    const sanitizedFullName = sanitizeTextInput(fullName, 120);
     
-    if (!email && !username && !fullName) {
+    if (!sanitizedEmail && !sanitizedUsername && !sanitizedFullName) {
       return new Response(JSON.stringify({ error: "At least one search parameter required" }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -93,7 +103,7 @@ serve(async (req) => {
     await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2000));
 
     const allResults: BreachResult[] = [];
-    const queries = [email, username, fullName].filter(Boolean);
+    const queries = [sanitizedEmail, sanitizedUsername, sanitizedFullName].filter(Boolean);
     
     for (const query of queries) {
       const breaches = generateBreaches(query!);
@@ -120,7 +130,7 @@ serve(async (req) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : "Unknown error";
     return new Response(JSON.stringify({ error: msg }), {
-      status: 500,
+      status: msg === "Unauthorized" ? 401 : msg === "Method not allowed" ? 405 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

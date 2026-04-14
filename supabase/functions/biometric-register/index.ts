@@ -2,12 +2,17 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
   createDuplicateAlerts,
+  assertPostMethod,
+  assertValidConsentText,
+  assertValidEmbedding,
   cosineSimilarity,
   decryptEmbedding,
   encryptEmbedding,
   getAdminClient,
   getAuthenticatedUser,
+  dedupeMatches,
   hasRequiredChallenges,
+  sanitizeProfileInput,
 } from "../_shared/biometric.ts";
 
 serve(async (req) => {
@@ -16,6 +21,8 @@ serve(async (req) => {
   }
 
   try {
+    assertPostMethod(req);
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Unauthorized");
 
@@ -23,9 +30,8 @@ serve(async (req) => {
     const admin = getAdminClient();
     const { embedding, anglesCompleted, liveness, consentText, profile } = await req.json();
 
-    if (!Array.isArray(embedding) || embedding.length !== 128) {
-      throw new Error("A valid face embedding is required");
-    }
+    assertValidEmbedding(embedding);
+    assertValidConsentText(consentText);
 
     if (!Array.isArray(anglesCompleted) || !["front", "turn_left", "turn_right"].every((angle) => anglesCompleted.includes(angle))) {
       throw new Error("Front, left, and right enrollment angles are required");
@@ -36,13 +42,11 @@ serve(async (req) => {
     }
 
     const encrypted = await encryptEmbedding(embedding);
+    const sanitizedProfile = sanitizeProfileInput(profile, user.email?.split("@")[0] ?? "Protected User");
 
     const { error: profileError } = await admin.from("profiles").upsert({
       user_id: user.id,
-      display_name: profile?.displayName ?? user.email?.split("@")[0] ?? "Protected User",
-      username: profile?.username ?? null,
-      social_link: profile?.socialLink ?? null,
-      keywords: profile?.keywords ?? null,
+      ...sanitizedProfile,
     }, { onConflict: "user_id" });
     if (profileError) throw profileError;
 
@@ -77,7 +81,7 @@ serve(async (req) => {
       }
     }
 
-    await createDuplicateAlerts(admin, user.id, duplicateMatches);
+    await createDuplicateAlerts(admin, user.id, dedupeMatches(duplicateMatches));
 
     return new Response(JSON.stringify({
       enrolled: true,
