@@ -47,6 +47,10 @@ const BiometricGate = () => {
 
       if (invokeError) throw invokeError;
 
+      if (mode === "verify" && data?.locked) {
+        throw new Error(`Account temporarily locked. Try again in ${data.minutesRemaining} minute(s).`);
+      }
+
       if (mode === "verify" && !data?.verified) {
         throw new Error("Face verification failed. Please try again in better lighting.");
       }

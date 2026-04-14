@@ -1,10 +1,16 @@
-import { lazy, Suspense, type FormEvent, useMemo, useState } from "react";
-import { motion } from "framer-motion";
-import { ArrowRight, Eye, Layers3, LockKeyhole, ScanFace, Shield, Sparkles, Stars, WandSparkles } from "lucide-react";
+import { type FormEvent, lazy, useMemo, useState } from "react";
+import { Eye, Shield, ScanFace, Layers3, LockKeyhole } from "lucide-react";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
 import FeatureCard from "@/components/landing/FeatureCard";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
+import { lovable } from "@/integrations/lovable/index";
+
+const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
+
+const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
+
+const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
 
 const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
 
@@ -114,324 +120,204 @@ const AuthPage = () => {
     }
   };
 
+  const inputClass = "w-full rounded-md border border-border bg-secondary/90 px-3 py-2.5 text-sm font-body text-foreground placeholder:text-muted-foreground transition-all duration-300 focus:-translate-y-0.5 focus:outline-none focus:ring-1 focus:ring-primary";
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 text-white">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute left-[-8%] top-[-5%] h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="absolute right-[-4%] top-[12%] h-96 w-96 rounded-full bg-violet-500/20 blur-3xl" />
-        <div className="absolute bottom-[-10%] left-1/3 h-80 w-80 rounded-full bg-sky-500/10 blur-3xl" />
-        <div className="grid-floor absolute inset-x-0 bottom-0 h-[40vh] opacity-40" />
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 opacity-60">
+        <div className="absolute left-1/2 top-0 h-72 w-72 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
+        <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-accent/10 blur-3xl" />
       </div>
 
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/65 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_40px_-16px_rgba(34,211,238,0.85)]">
-              <Shield className="h-5 w-5 text-cyan-300" />
+      <section className="relative flex flex-1 items-center justify-center px-4 py-10">
+        <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[420px_1fr]">
+          {/* Auth Form */}
+          <div className="glass-panel motion-enter hover-lift rounded-2xl p-8">
+            <div className="mb-8 text-center">
+              <div className="mb-4 inline-flex items-center gap-2">
+                <Shield className="h-8 w-8 text-primary" />
+                <h1 className="text-2xl font-mono font-bold tracking-tight text-foreground">E-Vara</h1>
+              </div>
             </div>
-            <div>
-              <p className="text-sm font-semibold tracking-[0.24em] text-cyan-200/80">E-VARA</p>
-              <p className="text-xs text-slate-400">Futuristic identity command surface</p>
-            </div>
-          </div>
 
-          <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
-            <a href="#hero" className="transition-colors hover:text-white">Hero</a>
-            <a href="#features" className="transition-colors hover:text-white">Features</a>
-            <a href="#cta" className="transition-colors hover:text-white">Launch</a>
-          </nav>
-        </div>
-      </header>
+            <h2 className="mb-6 text-lg font-mono font-semibold text-foreground">
+              {mode === "login" ? "Sign In" : "Create Account"}
+            </h2>
 
-      <main>
-        <section id="hero" className="relative mx-auto max-w-7xl px-4 pb-16 pt-10 sm:px-6 lg:px-8 lg:pb-24 lg:pt-16">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <motion.div
-              initial={{ opacity: 0, y: 32 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-              className="space-y-8"
-            >
-              <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-white/5 px-4 py-2 text-xs uppercase tracking-[0.28em] text-cyan-200/90 backdrop-blur-xl">
-                <Sparkles className="h-3.5 w-3.5" />
-                Premium 3D identity experience
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {mode === "register" && (
+                <div>
+                  <label className="mb-1.5 block text-xs font-mono uppercase tracking-wider text-muted-foreground">Display Name</label>
+                  <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required className={inputClass} placeholder="Jane Doe" />
+                </div>
+              )}
+
+              <div>
+                <label className="mb-1.5 block text-xs font-mono uppercase tracking-wider text-muted-foreground">Email</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputClass} placeholder="you@example.com" />
               </div>
 
-              <div className="space-y-5">
-                <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-white sm:text-5xl xl:text-6xl">
-                  A <span className="text-gradient">futuristic biometric portal</span> with motion, depth, and trust built in.
-                </h1>
-                <p className="max-w-2xl text-base leading-8 text-slate-300 sm:text-lg">
-                  Dark glassmorphism, optimized 3D motion, and secure auth flows come together in a premium landing experience designed to feel alive without becoming noisy.
-                </p>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                {stats.map((stat, index) => (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.12 * index }}
-                    className="glass-panel rounded-2xl px-4 py-4"
-                  >
-                    <p className="text-xs uppercase tracking-[0.22em] text-slate-400">{stat.label}</p>
-                    <p className="mt-2 text-xl font-semibold text-white">{stat.value}</p>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="glass-panel overflow-hidden rounded-[2rem] border-white/10 p-1">
-                <div
-                  className="relative min-h-[340px] overflow-hidden rounded-[1.7rem] bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.12),transparent_35%),linear-gradient(180deg,rgba(15,23,42,0.94),rgba(2,6,23,0.98))]"
-                  onMouseMove={(event) => {
-                    const bounds = event.currentTarget.getBoundingClientRect();
-                    const x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
-                    const y = ((event.clientY - bounds.top) / bounds.height) * 2 - 1;
-                    setPointer({ x, y });
-                  }}
-                  onMouseLeave={() => setPointer({ x: 0, y: 0 })}
-                >
-                  {!isMobile ? (
-                    <Suspense
-                      fallback={
-                        <div className="flex h-full min-h-[340px] items-center justify-center text-sm text-slate-300">
-                          Loading immersive 3D scene…
-                        </div>
-                      }
-                    >
-                      <div className="absolute inset-0">
-                        <HeroScene pointerX={pointer.x} pointerY={pointer.y} />
-                      </div>
-                    </Suspense>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="mobile-orb" />
-                    </div>
-                  )}
-
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_20%,rgba(2,6,23,0.44)_72%)]" />
-                  <div className="absolute inset-x-6 bottom-6 rounded-3xl border border-white/10 bg-slate-950/55 p-5 backdrop-blur-xl">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">Reactive scene</p>
-                        <p className="mt-2 text-sm text-slate-300">Mouse movement subtly tilts the cluster while low-cost geometry and lazy loading keep the hero light.</p>
-                      </div>
-                      <Stars className="hidden h-6 w-6 text-cyan-300 sm:block" />
-                    </div>
-                  </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-mono uppercase tracking-wider text-muted-foreground">Password</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className={`${inputClass} pr-10`}
+                    placeholder="••••••••"
+                  />
+                  <button type="button" onClick={() => setShowPassword((o) => !o)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <Eye className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
-            </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.1 }}
-              className="space-y-6"
-            >
-              <div className="glass-panel rounded-[2rem] p-7 sm:p-8">
-                <div className="mb-8 flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-cyan-400/30 bg-cyan-400/10 shadow-[0_0_50px_-18px_rgba(34,211,238,0.9)]">
-                    <Shield className="h-6 w-6 text-cyan-300" />
-                  </div>
+              {mode === "register" && (
+                <>
                   <div>
-                    <p className="text-xs uppercase tracking-[0.26em] text-cyan-200/80">Secure access</p>
-                    <h2 className="mt-1 text-2xl font-semibold text-white">{mode === "login" ? "Sign in" : "Create account"}</h2>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {mode === "register" && (
-                    <div>
-                      <label className="mb-1.5 block text-xs uppercase tracking-[0.22em] text-slate-400">Display name</label>
-                      <input
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        required
-                        className="auth-input"
-                        placeholder="Jane Doe"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="mb-1.5 block text-xs uppercase tracking-[0.22em] text-slate-400">Email</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="auth-input"
-                      placeholder="you@example.com"
-                    />
+                    <label className="mb-1.5 block text-xs font-mono uppercase tracking-wider text-muted-foreground">Confirm Password</label>
+                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className={inputClass} placeholder="••••••••" />
                   </div>
 
-                  <div>
-                    <label className="mb-1.5 block text-xs uppercase tracking-[0.22em] text-slate-400">Password</label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                        className="auth-input pr-12"
-                        placeholder="••••••••"
-                      />
-                      <button type="button" onClick={() => setShowPassword((open) => !open)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors hover:text-white">
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
+                  <label className="interactive-scale flex items-start gap-3 rounded-md border border-border bg-secondary/90 p-3">
+                    <input type="checkbox" checked={consentChecked} onChange={(e) => setConsentChecked(e.target.checked)} className="mt-1 h-4 w-4 rounded border-border bg-background text-primary" />
+                    <span className="text-xs font-body leading-relaxed text-foreground">{CONSENT_TEXT}</span>
+                  </label>
+                </>
+              )}
 
-                  {mode === "register" && (
-                    <>
-                      <div>
-                        <label className="mb-1.5 block text-xs uppercase tracking-[0.22em] text-slate-400">Confirm password</label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          required
-                          className="auth-input"
-                          placeholder="••••••••"
-                        />
-                      </div>
+              {error && <p className="text-sm font-body text-destructive">{error}</p>}
+              {notice && <p className="text-sm font-body text-primary">{notice}</p>}
 
-                      <label className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-                        <input
-                          type="checkbox"
-                          checked={consentChecked}
-                          onChange={(e) => setConsentChecked(e.target.checked)}
-                          className="mt-1 h-4 w-4 rounded border-white/15 bg-slate-950 text-cyan-400"
-                        />
-                        <span>{CONSENT_TEXT}</span>
-                      </label>
-                    </>
-                  )}
-
-                  {error && <p className="text-sm text-rose-300">{error}</p>}
-                  {notice && <p className="text-sm text-cyan-300">{notice}</p>}
-
-                  <button
-                    type="submit"
-                    disabled={submitting || (mode === "register" && (!scanResult || !consentChecked))}
-                    className="cta-button"
-                  >
-                    <span>{submitting ? "Processing…" : mode === "login" ? "Enter workspace" : "Create secure account"}</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </form>
-
-                <p className="mt-6 text-center text-sm text-slate-400">
-                  {mode === "login" ? "Need a protected account?" : "Already have an account?"}{" "}
-                  <button
-                    onClick={() => {
-                      setMode(mode === "login" ? "register" : "login");
-                      setError("");
-                      setNotice("");
-                    }}
-                    className="font-medium text-cyan-300 transition-opacity hover:opacity-80"
-                  >
-                    {mode === "login" ? "Register" : "Sign in"}
-                  </button>
-                </p>
-              </div>
-
-              <div className="glass-panel rounded-[2rem] p-6">
-                {mode === "register" ? (
-                  <FaceScan mode="enroll" consentGranted={consentChecked} onComplete={setScanResult} />
-                ) : (
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.22em] text-cyan-200/80">Biometric checkpoint</p>
-                    <h3 className="mt-2 text-xl font-semibold text-white">3D-forward trust, operationally grounded.</h3>
-                    <p className="mt-3 text-sm leading-7 text-slate-300">
-                      Password sign-in is followed by a live webcam biometric verification pass with liveness checks before workspace access is granted.
-                    </p>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                      {[
-                        "Live webcam only",
-                        "Hover-reactive 3D hero",
-                        "Encrypted embeddings",
-                      ].map((item) => (
-                        <div key={item} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-5 text-center text-xs uppercase tracking-[0.22em] text-slate-200">
-                          {item}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        </section>
-
-        <section id="features" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 0.6 }}
-            className="mx-auto max-w-3xl text-center"
-          >
-            <p className="text-xs uppercase tracking-[0.3em] text-cyan-200/80">Features</p>
-            <h2 className="mt-4 text-3xl font-semibold text-white sm:text-4xl">Reusable premium sections with smooth depth and motion.</h2>
-            <p className="mt-4 text-base leading-8 text-slate-300">
-              The landing system is built from reusable components, lazy-loaded 3D rendering, and motion-controlled cards to keep the UI futuristic yet maintainable.
-            </p>
-          </motion.div>
-
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {featureCards.map((card, index) => (
-              <FeatureCard
-                key={card.title}
-                title={card.title}
-                description={card.description}
-                icon={card.icon}
-                accent={card.accent}
-                delay={index * 0.1}
-              />
-            ))}
-          </div>
-        </section>
-
-        <section id="cta" className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.4 }}
-            transition={{ duration: 0.6 }}
-            className="glass-panel relative overflow-hidden rounded-[2rem] px-6 py-10 sm:px-10"
-          >
-            <div className="absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,rgba(34,211,238,0.18),transparent_60%)]" />
-            <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-xs uppercase tracking-[0.28em] text-cyan-200/80">Call to action</p>
-                <h2 className="mt-3 text-3xl font-semibold text-white">Launch a security workflow that looks as advanced as it feels.</h2>
-                <p className="mt-4 text-base leading-8 text-slate-300">
-                  The 3D hero is lazy-loaded, responsive, and pointer-reactive. On mobile, it falls back to a lightweight CSS orb so the page stays smooth without heavy rendering.
-                </p>
-              </div>
               <button
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                className="cta-button max-w-fit"
+                type="submit"
+                disabled={submitting || (mode === "register" && (!scanResult || !consentChecked))}
+                className="interactive-scale w-full rounded-md bg-primary px-4 py-2.5 text-sm font-mono font-medium text-primary-foreground transition-all duration-300 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <WandSparkles className="h-4 w-4" />
-                <span>Back to access</span>
+                {submitting ? "Processing..." : mode === "login" ? "Sign In" : "Create Secure Account"}
               </button>
-            </div>
-          </motion.div>
-        </section>
-      </main>
+            </form>
 
-      <footer className="border-t border-white/10 bg-slate-950/70">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-slate-400 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <p>© 2026 E-Vara. Premium biometric access surfaces for modern identity workflows.</p>
-          <div className="flex items-center gap-4">
-            <span>React + Tailwind</span>
-            <span>React Three Fiber</span>
-            <span>Framer Motion</span>
+            {mode === "login" && (
+              <div className="mt-4 space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">or continue with</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={async () => {
+                      setError("");
+                      setSubmitting(true);
+                      try {
+                        const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+                        if (result.error) throw result.error;
+                      } catch (caught) {
+                        setError(caught instanceof Error ? caught.message : "Google sign-in failed");
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    className="interactive-scale flex items-center justify-center gap-2 rounded-md border border-border bg-secondary/90 px-3 py-2.5 text-sm font-mono text-foreground transition-all duration-300 hover:bg-secondary disabled:opacity-50"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    Google
+                  </button>
+                  <button
+                    type="button"
+                    disabled={submitting}
+                    onClick={async () => {
+                      setError("");
+                      setSubmitting(true);
+                      try {
+                        const result = await lovable.auth.signInWithOAuth("apple", { redirect_uri: window.location.origin });
+                        if (result.error) throw result.error;
+                      } catch (caught) {
+                        setError(caught instanceof Error ? caught.message : "Apple sign-in failed");
+                      } finally {
+                        setSubmitting(false);
+                      }
+                    }}
+                    className="interactive-scale flex items-center justify-center gap-2 rounded-md border border-border bg-secondary/90 px-3 py-2.5 text-sm font-mono text-foreground transition-all duration-300 hover:bg-secondary disabled:opacity-50"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>
+                    Apple
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === "login" && (
+              <p className="mt-4 text-center">
+                <a href="/forgot-password" className="text-xs font-mono text-primary hover:underline">Forgot your password?</a>
+              </p>
+            )}
+
+            <p className="mt-4 text-center text-xs font-body text-muted-foreground">
+              {mode === "login" ? "Need a protected account?" : "Already have an account?"}{" "}
+              <button
+                onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); setNotice(""); }}
+                className="text-primary hover:underline"
+              >
+                {mode === "login" ? "Register" : "Sign In"}
+              </button>
+            </p>
           </div>
+
+          {/* Right panel */}
+          <div className="motion-enter motion-enter-delay-2 space-y-4">
+            {mode === "register" ? (
+              <FaceScan mode="enroll" consentGranted={consentChecked} onComplete={setScanResult} />
+            ) : (
+              <div className="glass-panel hover-lift rounded-2xl p-8">
+                <h2 className="text-lg font-mono font-semibold text-foreground">Biometric login step</h2>
+                <p className="mt-3 text-sm font-body leading-relaxed text-muted-foreground">
+                  After password sign-in, the app requires a live webcam face verification with liveness checks before granting access.
+                </p>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  {["Live webcam only", "Blink + head-turn liveness", "Encrypted embeddings only"].map((item) => (
+                    <div key={item} className="interactive-scale rounded-md border border-border bg-secondary/90 px-4 py-6 text-center text-xs font-mono text-foreground">
+                      {item}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              {stats.map((stat) => (
+                <div key={stat.label} className="glass-panel rounded-lg p-4 text-center">
+                  <p className="text-lg font-mono font-bold text-foreground">{stat.value}</p>
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-primary/80">Features</p>
+          <h2 className="mt-4 text-3xl font-mono font-semibold text-foreground">Premium biometric security sections.</h2>
+        </div>
+        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+          {featureCards.map((card, index) => (
+            <FeatureCard key={card.title} title={card.title} description={card.description} icon={card.icon} accent={card.accent} delay={index * 0.1} />
+          ))}
+        </div>
+      </section>
+
+      <footer className="border-t border-border bg-card/70">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-8 text-sm text-muted-foreground sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <p>© 2026 E-Vara. Premium biometric access surfaces for modern identity workflows.</p>
         </div>
       </footer>
     </div>

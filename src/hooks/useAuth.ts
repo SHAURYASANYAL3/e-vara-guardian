@@ -64,14 +64,14 @@ export function useAuth() {
       keywords: data.profile.keywords ?? "",
     } : null);
 
-    setAlerts((data?.alerts ?? []).map((alert: any) => ({
-      id: String(alert.id),
-      alertType: String(alert.alert_type),
-      message: String(alert.message),
+    setAlerts((data?.alerts ?? []).map((alert: Record<string, unknown>) => ({
+      id: String(alert.id ?? ""),
+      alertType: String(alert.alert_type ?? ""),
+      message: String(alert.message ?? ""),
       confidence: Number(alert.confidence ?? 0),
       acknowledgedByUser: Boolean(alert.acknowledged_by_user),
       acknowledgedByAdmin: Boolean(alert.acknowledged_by_admin),
-      createdAt: String(alert.created_at),
+      createdAt: String(alert.created_at ?? ""),
     })));
 
     setIsBiometricEnrolled(Boolean(data?.isEnrolled));
@@ -108,7 +108,7 @@ export function useAuth() {
     displayName: string;
   }) => {
     if (payload.password !== payload.confirmPassword) return { error: "Passwords do not match", hasSession: false };
-    if (payload.password.length < 6) return { error: "Password must be at least 6 characters", hasSession: false };
+    if (payload.password.length < 8) return { error: "Password must be at least 8 characters", hasSession: false };
 
     const { data, error } = await supabase.auth.signUp({
       email: payload.email,

@@ -56,8 +56,8 @@ const ToolsPanel = ({ identity }: ToolsPanelProps) => {
       });
       if (error) throw error;
       setScanResults(data as ScanResponse);
-    } catch (e: any) {
-      setScanError(e.message || "Scan failed. Please try again.");
+    } catch (e: unknown) {
+      setScanError(e instanceof Error ? e.message : "Scan failed. Please try again.");
     } finally {
       setScanning(false);
     }

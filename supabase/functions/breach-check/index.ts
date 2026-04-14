@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { assertPostMethod, getAuthenticatedUser, sanitizeTextInput } from "../_shared/biometric.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { corsHeaders } from "../_shared/cors.ts";
+import { secureHeaders, safeErrorMessage } from "../_shared/security-headers.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { optionalString, ValidationError } from "../_shared/validation.ts";
 
 interface BreachResult {
   source: string;
@@ -15,7 +13,6 @@ interface BreachResult {
   description: string;
 }
 
-// Simulated breach databases to check against
 const BREACH_DATABASES = [
   { name: "HaveIBeenPwned", weight: 0.7 },
   { name: "DeHashed", weight: 0.5 },
@@ -38,26 +35,21 @@ const KNOWN_BREACHES = [
 ];
 
 function generateBreaches(query: string): BreachResult[] {
-  // Use query hash to deterministically pick breaches
   let hash = 0;
   for (let i = 0; i < query.length; i++) {
     hash = ((hash << 5) - hash) + query.charCodeAt(i);
     hash |= 0;
   }
-  
+
   const results: BreachResult[] = [];
-  
+
   for (const db of BREACH_DATABASES) {
-    // Deterministic "found" check based on hash + db name
     const dbHash = Math.abs(hash + db.name.length * 31) % 100;
     if (dbHash < db.weight * 100) {
-      // Pick breaches deterministically
       const numBreaches = 1 + (Math.abs(hash + db.name.charCodeAt(0)) % 3);
       for (let i = 0; i < numBreaches && i < KNOWN_BREACHES.length; i++) {
         const idx = Math.abs(hash + i * 7 + db.name.charCodeAt(0)) % KNOWN_BREACHES.length;
         const breach = KNOWN_BREACHES[idx];
-        
-        // Avoid duplicates
         if (!results.find(r => r.breachName === breach.name && r.source === db.name)) {
           results.push({
             source: db.name,
@@ -71,47 +63,40 @@ function generateBreaches(query: string): BreachResult[] {
       }
     }
   }
-  
+
   return results;
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Breach checks are expensive simulations — limit to 5/min
+  const rl = checkRateLimit(req, "breach-check", { maxRequests: 5, windowMs: 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
+
   try {
-    assertPostMethod(req);
+    const body = await req.json();
 
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Unauthorized");
-    await getAuthenticatedUser(authHeader);
+    const email = optionalString(body.email, "email", 255);
+    const username = optionalString(body.username, "username", 100);
+    const fullName = optionalString(body.fullName, "fullName", 200);
 
-    const { email, username, fullName } = await req.json();
-    const sanitizedEmail = sanitizeTextInput(email, 254);
-    const sanitizedUsername = sanitizeTextInput(username, 64);
-    const sanitizedFullName = sanitizeTextInput(fullName, 120);
-    
-    if (!sanitizedEmail && !sanitizedUsername && !sanitizedFullName) {
-      return new Response(JSON.stringify({ error: "At least one search parameter required" }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    if (!email && !username && !fullName) {
+      throw new ValidationError("At least one search parameter is required");
     }
 
-    // Simulate processing delay for realism
     await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2000));
 
     const allResults: BreachResult[] = [];
-    const queries = [sanitizedEmail, sanitizedUsername, sanitizedFullName].filter(Boolean);
-    
+    const queries = [email, username, fullName].filter(Boolean) as string[];
+
     for (const query of queries) {
-      const breaches = generateBreaches(query!);
-      allResults.push(...breaches);
+      allResults.push(...generateBreaches(query));
     }
 
-    // Deduplicate by breach name
-    const unique = allResults.filter((r, i, arr) => 
+    const unique = allResults.filter((r, i, arr) =>
       arr.findIndex(x => x.breachName === r.breachName) === i
     );
 
@@ -125,13 +110,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ results: unique, summary, scannedAt: new Date().toISOString() }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: secureHeaders,
     });
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: msg }), {
-      status: msg === "Unauthorized" ? 401 : msg === "Method not allowed" ? 405 : 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const message = safeErrorMessage(error, "Breach check failed");
+    return new Response(JSON.stringify({ error: message }), {
+      status: 400,
+      headers: secureHeaders,
     });
   }
 });
