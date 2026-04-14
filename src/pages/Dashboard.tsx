@@ -85,6 +85,13 @@ const Dashboard = () => {
               </button>
             )}
             <button
+              onClick={() => setShowProfile(true)}
+              className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
+            >
+              <UserCircle className="h-3 w-3" />
+              <span className="hidden sm:inline">Profile</span>
+            </button>
+            <button
               onClick={() => setShowHistory(true)}
               className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
             >
