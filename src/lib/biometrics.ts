@@ -148,23 +148,6 @@ export async function detectFaceSnapshot(video: HTMLVideoElement, allowBackendFa
   }
 }
 
-
-export function isTransientFaceApiError(error: unknown) {
-  if (!(error instanceof Error)) return false;
-
-  const message = error.message.toLowerCase();
-  return [
-    "backend",
-    "webgl",
-    "tensor",
-    "texture",
-    "source image",
-    "video",
-    "disposed",
-    "cannot read properties of undefined",
-  ].some((token) => message.includes(token));
-}
-
 export function averageEmbeddings(embeddings: number[][]) {
   if (!embeddings.length) return [];
 
@@ -224,4 +207,10 @@ export function formatConfidence(score: number) {
 
 export function hasValidEmbedding(embedding: number[]) {
   return Array.isArray(embedding) && embedding.length === 128 && embedding.every((value) => Number.isFinite(value));
+}
+
+export function isTransientFaceApiError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes("no face") || msg.includes("tensor") || msg.includes("webgl") || msg.includes("dimension");
 }

@@ -69,8 +69,6 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
       videoRef.current.srcObject = null;
     }
 
-    snapshotInFlightRef.current = false;
-    consecutiveErrorsRef.current = 0;
     setActive(false);
   }, []);
 
@@ -103,7 +101,6 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
 
   const handleSnapshot = useCallback(async () => {
     if (!videoRef.current || !currentChallenge || snapshotInFlightRef.current) return;
-    if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || videoRef.current.videoWidth === 0) return;
 
     snapshotInFlightRef.current = true;
 
@@ -114,8 +111,6 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
         return;
       }
 
-      consecutiveErrorsRef.current = 0;
-      setError(null);
       setConfidence(snapshot.confidence);
       setSampleCount((count) => count + 1);
 
@@ -144,18 +139,8 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
         stableFramesRef.current = 0;
       }
     } catch (caught) {
-      if (isTransientFaceApiError(caught)) {
-        consecutiveErrorsRef.current += 1;
-        if (consecutiveErrorsRef.current >= 6) {
-          setError("Face scan became unstable. Please restart scanning.");
-          stop();
-        } else {
-          setError("Recalibrating face scan… hold steady for a moment.");
-        }
-      } else {
-        setError(caught instanceof Error ? caught.message : "Face detection failed");
-        stop();
-      }
+      setError(caught instanceof Error ? caught.message : "Face detection failed");
+      stop();
     } finally {
       snapshotInFlightRef.current = false;
     }
