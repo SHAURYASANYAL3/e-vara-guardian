@@ -81,6 +81,36 @@ export async function decryptEmbedding(ciphertext: string, iv: string) {
   return JSON.parse(decoder.decode(decrypted)) as number[];
 }
 
+export function assertPostMethod(req: Request) {
+  if (req.method !== "POST") {
+    throw new Error("Method not allowed");
+  }
+}
+
+export function dedupeMatches(matches: Array<{ userId: string; confidence: number }>) {
+  const map = new Map<string, { userId: string; confidence: number }>();
+  for (const match of matches) {
+    const existing = map.get(match.userId);
+    if (!existing || match.confidence > existing.confidence) {
+      map.set(match.userId, match);
+    }
+  }
+  return [...map.values()];
+}
+
+export function sanitizeProfileInput(
+  input: Record<string, unknown> | undefined | null,
+  fallbackName: string,
+) {
+  const profile = input && typeof input === "object" ? input : {};
+  return {
+    display_name: cleanText(profile.displayName as string, 80) ?? fallbackName,
+    username: cleanText(profile.username as string, 32),
+    social_link: cleanText(profile.socialLink as string, 300),
+    keywords: cleanText(profile.keywords as string, 300),
+  };
+}
+
 export function cosineSimilarity(a: number[], b: number[]) {
   if (!a.length || a.length !== b.length) return 0;
 

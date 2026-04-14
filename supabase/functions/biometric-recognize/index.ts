@@ -4,11 +4,9 @@ import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/securit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireEmbedding } from "../_shared/validation.ts";
 import {
-  assertValidEmbedding,
-  createDuplicateAlerts,
+  assertPostMethod,
   cosineSimilarity,
   createDuplicateAlerts,
-  dedupeMatches,
   decryptEmbedding,
   getAdminClient,
   getAuthenticatedUser,
@@ -19,7 +17,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Continuous recognition can be frequent — allow 30/min
   const rl = checkRateLimit(req, "biometric-recognize", { maxRequests: 30, windowMs: 60_000 });
   if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
 
@@ -61,7 +58,7 @@ serve(async (req) => {
     const suspiciousDuplicate = bestMatch.userId !== user.id && bestMatch.confidence >= 0.92;
 
     if (suspiciousDuplicate) {
-      await createDuplicateAlerts(admin, user.id, dedupeMatches([{ userId: bestMatch.userId, confidence: bestMatch.confidence }]));
+      await createDuplicateAlerts(admin, user.id, [{ userId: bestMatch.userId, confidence: bestMatch.confidence }]);
     }
 
     return new Response(JSON.stringify({

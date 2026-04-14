@@ -3,7 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireUUID } from "../_shared/validation.ts";
-import { getAdminClient, getAuthenticatedUser, getUserRoles } from "../_shared/biometric.ts";
+import { assertPostMethod, getAdminClient, getAuthenticatedUser, getUserRoles } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,8 +27,6 @@ serve(async (req) => {
 
     const alertId = requireUUID(body.alertId, "alertId");
 
-    // Use security definer function to prevent privilege escalation
-    // (users cannot set acknowledged_by_admin, admins cannot impersonate users)
     const { error } = await admin.rpc("acknowledge_alert", {
       _alert_id: alertId,
       _is_admin: isAdmin,

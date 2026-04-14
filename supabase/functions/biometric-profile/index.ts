@@ -3,7 +3,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireString, optionalString } from "../_shared/validation.ts";
-import { getAdminClient, getAuthenticatedUser } from "../_shared/biometric.ts";
+import { assertPostMethod, getAdminClient, getAuthenticatedUser } from "../_shared/biometric.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {

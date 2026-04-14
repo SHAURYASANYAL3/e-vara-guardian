@@ -4,18 +4,15 @@ import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/securit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
 import { requireEmbedding, requireAngles, requireLiveness, requireString, optionalString, ValidationError } from "../_shared/validation.ts";
 import {
-  createDuplicateAlerts,
   assertPostMethod,
   assertValidConsentText,
-  assertValidEmbedding,
   cosineSimilarity,
+  createDuplicateAlerts,
   decryptEmbedding,
   encryptEmbedding,
   getAdminClient,
   getAuthenticatedUser,
-  dedupeMatches,
   hasRequiredChallenges,
-  sanitizeProfileInput,
 } from "../_shared/biometric.ts";
 import { logAuditEvent, getClientIp } from "../_shared/audit.ts";
 
@@ -54,7 +51,6 @@ serve(async (req) => {
     }
 
     const encrypted = await encryptEmbedding(embedding);
-    const sanitizedProfile = sanitizeProfileInput(profile, user.email?.split("@")[0] ?? "Protected User");
 
     const { error: profileError } = await admin.from("profiles").upsert({
       user_id: user.id,
@@ -96,7 +92,7 @@ serve(async (req) => {
       }
     }
 
-    await createDuplicateAlerts(admin, user.id, dedupeMatches(duplicateMatches));
+    await createDuplicateAlerts(admin, user.id, duplicateMatches);
 
     await logAuditEvent(user.id, "biometric.enroll", {
       anglesCompleted,
