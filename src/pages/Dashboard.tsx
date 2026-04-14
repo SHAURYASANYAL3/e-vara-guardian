@@ -1,5 +1,7 @@
-import { useState, useCallback } from "react";
-import { Shield, LogOut, History, Sun, Moon } from "lucide-react";
+import { useState, useCallback, lazy, Suspense } from "react";
+import { Shield, LogOut, History, Sun, Moon, ShieldAlert } from "lucide-react";
+
+const AdminDashboard = lazy(() => import("@/pages/AdminDashboard"));
 import { useAuth } from "@/hooks/useAuth";
 import { useTheme } from "@/hooks/useTheme";
 import IdentityForm from "@/components/IdentityForm";
@@ -18,6 +20,7 @@ const Dashboard = () => {
   const [monitoringActive, setMonitoringActive] = useState(false);
   const [monitoringStart, setMonitoringStart] = useState<Date | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const handleProfileSave = useCallback((data: { displayName: string; username: string; socialLink: string; keywords: string }) => {
     return saveProfile(data);
@@ -31,6 +34,14 @@ const Dashboard = () => {
     setMonitoringActive(active);
     setMonitoringStart(startTime);
   }, []);
+
+  if (showAdmin) {
+    return (
+      <Suspense fallback={<div className="flex min-h-screen items-center justify-center bg-background"><p className="text-sm font-mono text-muted-foreground">Loading...</p></div>}>
+        <AdminDashboard onBack={() => setShowAdmin(false)} />
+      </Suspense>
+    );
+  }
 
   if (showHistory) {
     return <AlertHistory alerts={monitoringAlerts} onBack={() => setShowHistory(false)} />;
@@ -54,6 +65,15 @@ const Dashboard = () => {
             >
               {theme === "dark" ? <Sun className="h-3 w-3" /> : <Moon className="h-3 w-3" />}
             </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowAdmin(true)}
+                className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"
+              >
+                <ShieldAlert className="h-3 w-3" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
             <button
               onClick={() => setShowHistory(true)}
               className="interactive-scale inline-flex items-center gap-1 rounded-md border border-border bg-secondary/85 px-2 py-1.5 text-[10px] font-mono text-muted-foreground transition-all duration-300 hover:border-foreground/20 hover:text-foreground sm:px-3 sm:text-xs"

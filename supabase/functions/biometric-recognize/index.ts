@@ -1,8 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireEmbedding } from "../_shared/validation.ts";
 import {
-  assertPostMethod,
   assertValidEmbedding,
+  createDuplicateAlerts,
   cosineSimilarity,
   createDuplicateAlerts,
   dedupeMatches,
@@ -16,6 +19,10 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Continuous recognition can be frequent — allow 30/min
+  const rl = checkRateLimit(req, "biometric-recognize", { maxRequests: 30, windowMs: 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
+
   try {
     assertPostMethod(req);
 
@@ -24,9 +31,9 @@ serve(async (req) => {
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { embedding } = await req.json();
+    const body = await req.json();
 
-    assertValidEmbedding(embedding);
+    const embedding = requireEmbedding(body.embedding);
 
     const { data: rows, error } = await admin
       .from("face_embeddings")
@@ -46,7 +53,7 @@ serve(async (req) => {
     if (!bestMatch) {
       return new Response(JSON.stringify({ matchStatus: "no_enrollment", confidence: 0 }), {
         status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: secureHeaders,
       });
     }
 
@@ -62,13 +69,13 @@ serve(async (req) => {
       confidence: Number(bestMatch.confidence.toFixed(4)),
     }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: secureHeaders,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Recognition failed";
+    const message = safeErrorMessage(error, "Recognition failed");
     return new Response(JSON.stringify({ error: message }), {
-      status: message === "Unauthorized" ? 401 : 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: errorStatus(message),
+      headers: secureHeaders,
     });
   }
 });

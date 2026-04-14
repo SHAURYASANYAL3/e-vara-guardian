@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ScanFace, ShieldAlert, ShieldCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { detectFaceSnapshot, formatConfidence, isTransientFaceApiError, loadFaceModels, requestUserCamera } from "@/lib/biometrics";
+import { detectFaceSnapshot, formatConfidence, loadFaceModels, requestUserCamera } from "@/lib/biometrics";
 
 interface RecognitionPanelProps {
   onRecognition?: () => void;
@@ -34,7 +34,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const requestInFlight = useRef(false);
   const snapshotInFlight = useRef(false);
-  const consecutiveErrors = useRef(0);
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState<MatchStatus>("idle");
   const [confidence, setConfidence] = useState(0);
@@ -54,9 +53,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
       videoRef.current.srcObject = null;
     }
 
-    requestInFlight.current = false;
-    snapshotInFlight.current = false;
-    consecutiveErrors.current = 0;
     setActive(false);
     setStatus("idle");
   }, []);
@@ -65,7 +61,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
 
   const pollRecognition = useCallback(async () => {
     if (!videoRef.current || requestInFlight.current || snapshotInFlight.current) return;
-    if (videoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || videoRef.current.videoWidth === 0) return;
 
     snapshotInFlight.current = true;
 
@@ -77,8 +72,6 @@ const RecognitionPanel = ({ onRecognition, onSuspiciousMatch }: RecognitionPanel
         return;
       }
 
-      consecutiveErrors.current = 0;
-      setError(null);
       requestInFlight.current = true;
       const { data, error: invokeError } = await supabase.functions.invoke("biometric-recognize", {
         body: { embedding: snapshot.embedding },

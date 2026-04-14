@@ -148,23 +148,6 @@ export async function detectFaceSnapshot(video: HTMLVideoElement, allowBackendFa
   }
 }
 
-
-export function isTransientFaceApiError(error: unknown) {
-  if (!(error instanceof Error)) return false;
-
-  const message = error.message.toLowerCase();
-  return [
-    "backend",
-    "webgl",
-    "tensor",
-    "texture",
-    "source image",
-    "video",
-    "disposed",
-    "cannot read properties of undefined",
-  ].some((token) => message.includes(token));
-}
-
 export function averageEmbeddings(embeddings: number[][]) {
   if (!embeddings.length) return [];
 

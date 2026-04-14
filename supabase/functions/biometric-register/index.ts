@@ -1,5 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
+import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
+import { requireEmbedding, requireAngles, requireLiveness, requireString, optionalString, ValidationError } from "../_shared/validation.ts";
 import {
   createDuplicateAlerts,
   assertPostMethod,
@@ -14,11 +17,15 @@ import {
   hasRequiredChallenges,
   sanitizeProfileInput,
 } from "../_shared/biometric.ts";
+import { logAuditEvent, getClientIp } from "../_shared/audit.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const rl = checkRateLimit(req, "biometric-register", { maxRequests: 5, windowMs: 60_000 });
+  if (!rl.allowed) return rateLimitResponse(rl.retryAfterMs, corsHeaders);
 
   try {
     assertPostMethod(req);
@@ -28,17 +35,22 @@ serve(async (req) => {
 
     const user = await getAuthenticatedUser(authHeader);
     const admin = getAdminClient();
-    const { embedding, anglesCompleted, liveness, consentText, profile } = await req.json();
+    const ip = getClientIp(req);
+    const body = await req.json();
 
-    assertValidEmbedding(embedding);
-    assertValidConsentText(consentText);
-
-    if (!Array.isArray(anglesCompleted) || !["front", "turn_left", "turn_right"].every((angle) => anglesCompleted.includes(angle))) {
-      throw new Error("Front, left, and right enrollment angles are required");
-    }
+    const embedding = requireEmbedding(body.embedding);
+    const anglesCompleted = requireAngles(body.anglesCompleted);
+    const liveness = requireLiveness(body.liveness);
+    const consentText = requireString(body.consentText, "consentText", 2000);
+    const displayName = body.profile?.displayName
+      ? requireString(body.profile.displayName, "displayName", 100)
+      : user.email?.split("@")[0] ?? "Protected User";
+    const username = optionalString(body.profile?.username, "username", 50);
+    const socialLink = optionalString(body.profile?.socialLink, "socialLink", 500);
+    const keywords = optionalString(body.profile?.keywords, "keywords", 500);
 
     if (!hasRequiredChallenges(liveness, ["blink", "turn_left", "turn_right"])) {
-      throw new Error("Liveness verification failed during enrollment");
+      throw new ValidationError("Liveness verification failed during enrollment");
     }
 
     const encrypted = await encryptEmbedding(embedding);
@@ -46,7 +58,10 @@ serve(async (req) => {
 
     const { error: profileError } = await admin.from("profiles").upsert({
       user_id: user.id,
-      ...sanitizedProfile,
+      display_name: displayName,
+      username,
+      social_link: socialLink,
+      keywords,
     }, { onConflict: "user_id" });
     if (profileError) throw profileError;
 
@@ -83,18 +98,30 @@ serve(async (req) => {
 
     await createDuplicateAlerts(admin, user.id, dedupeMatches(duplicateMatches));
 
+    await logAuditEvent(user.id, "biometric.enroll", {
+      anglesCompleted,
+      duplicateMatches: duplicateMatches.length,
+    }, ip);
+
+    if (duplicateMatches.length > 0) {
+      await logAuditEvent(user.id, "biometric.duplicate_detected", {
+        matchCount: duplicateMatches.length,
+        matchedUserIds: duplicateMatches.map((m) => m.userId),
+      }, ip);
+    }
+
     return new Response(JSON.stringify({
       enrolled: true,
       duplicateMatches: duplicateMatches.length,
     }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: secureHeaders,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Enrollment failed";
+    const message = safeErrorMessage(error, "Enrollment failed");
     return new Response(JSON.stringify({ error: message }), {
-      status: message === "Unauthorized" ? 401 : 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: errorStatus(message),
+      headers: secureHeaders,
     });
   }
 });

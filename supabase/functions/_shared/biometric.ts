@@ -2,10 +2,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const BIOMETRIC_ENCRYPTION_KEY = Deno.env.get("BIOMETRIC_ENCRYPTION_KEY")!;
+function requireEnv(name: string) {
+  const value = Deno.env.get(name);
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+const SUPABASE_URL = requireEnv("SUPABASE_URL");
+const SUPABASE_ANON_KEY = requireEnv("SUPABASE_ANON_KEY");
+const SUPABASE_SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+const BIOMETRIC_ENCRYPTION_KEY = requireEnv("BIOMETRIC_ENCRYPTION_KEY");
 
 export type AppRole = "admin" | "user";
 
@@ -146,81 +154,67 @@ export async function createDuplicateAlerts(
 }
 
 
-export function assertPostMethod(req: Request) {
-  if (req.method !== "POST") {
-    throw new Error("Method not allowed");
-  }
+function cleanText(value: unknown, maxLength: number) {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().replace(/\s+/g, " ");
+  return normalized ? normalized.slice(0, maxLength) : null;
 }
 
-export function assertValidEmbedding(embedding: unknown): asserts embedding is number[] {
-  if (!Array.isArray(embedding) || embedding.length !== 128 || embedding.some((value) => typeof value !== "number" || !Number.isFinite(value))) {
+export function assertValidEmbedding(embedding: unknown) {
+  if (!Array.isArray(embedding) || embedding.length !== 128 || !embedding.every((value) => typeof value === "number" && Number.isFinite(value))) {
     throw new Error("A valid face embedding is required");
   }
+  return embedding as number[];
 }
 
-export function assertValidConsentText(consentText: unknown) {
-  if (typeof consentText !== "string" || consentText.trim().length < 20 || consentText.length > 1000) {
-    throw new Error("A valid consent statement is required");
-  }
+export function assertValidConsentText(value: unknown) {
+  const consentText = cleanText(value, 500);
+  if (!consentText) throw new Error("Consent text is required");
+  return consentText;
 }
 
-export function sanitizeTextInput(value: unknown, maxLength: number, { allowEmpty = false } = {}) {
-  if (typeof value !== "string") {
-    if (allowEmpty || value == null) return allowEmpty ? "" : null;
-    throw new Error("Invalid text input");
-  }
+export function parseProfileInput(input: unknown) {
+  const profile = (input && typeof input === "object") ? input as Record<string, unknown> : {};
+  const displayName = cleanText(profile.displayName, 80);
+  const username = cleanText(profile.username, 32);
+  const socialLink = cleanText(profile.socialLink, 300);
+  const keywords = cleanText(profile.keywords, 300);
 
-  const normalized = value.trim().replace(/\s+/g, " ");
-  if (!normalized) return allowEmpty ? "" : null;
-  return normalized.slice(0, maxLength);
-}
-
-export function sanitizeOptionalUrl(value: unknown) {
-  const normalized = sanitizeTextInput(value, 2048);
-  if (!normalized) return null;
-
-  try {
-    const parsed = new URL(normalized);
-    if (!["https:", "http:"].includes(parsed.protocol)) throw new Error("Unsupported URL protocol");
-    return parsed.toString();
-  } catch {
-    throw new Error("A valid profile URL is required");
-  }
-}
-
-export function sanitizeUsername(value: unknown) {
-  const normalized = sanitizeTextInput(value, 32);
-  if (!normalized) return null;
-
-  const username = normalized.toLowerCase();
-  if (!/^[a-z0-9_][a-z0-9_.-]{1,31}$/.test(username)) {
-    throw new Error("Username may only contain lowercase letters, numbers, dots, hyphens, and underscores.");
+  if (socialLink) {
+    try {
+      const url = new URL(socialLink);
+      if (!["http:", "https:"].includes(url.protocol)) throw new Error("invalid");
+    } catch {
+      throw new Error("A valid http(s) social link is required");
+    }
   }
 
-  return username;
-}
-
-export function sanitizeProfileInput(profile: { displayName?: unknown; username?: unknown; socialLink?: unknown; keywords?: unknown } | null | undefined, fallbackName: string) {
-  const displayName = sanitizeTextInput(profile?.displayName, 80) ?? fallbackName;
-  const username = sanitizeUsername(profile?.username);
-  const socialLink = sanitizeOptionalUrl(profile?.socialLink);
-  const keywords = sanitizeTextInput(profile?.keywords, 200);
-
-  return { display_name: displayName, username, social_link: socialLink, keywords };
-}
-
-export function assertValidUuid(value: unknown, fieldName: string) {
-  if (typeof value !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
-    throw new Error(`Invalid ${fieldName}`);
+  if (username && !/^[a-zA-Z0-9._-]{3,32}$/.test(username)) {
+    throw new Error("Username must be 3-32 characters and only use letters, numbers, dots, underscores, or hyphens");
   }
+
+  return {
+    display_name: displayName,
+    username,
+    social_link: socialLink,
+    keywords,
+  };
 }
 
-export function dedupeMatches(matches: Array<{ userId: string; confidence: number }>) {
-  const seen = new Set<string>();
-  return matches.filter((match) => {
-    const key = `${match.userId}:${match.confidence.toFixed(4)}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+export function parseAlertId(value: unknown) {
+  const alertId = cleanText(value, 64);
+  if (!alertId || !/^[0-9a-fA-F-]{36}$/.test(alertId)) {
+    throw new Error("A valid alert id is required");
+  }
+  return alertId;
+}
+
+export function parseAnglesCompleted(value: unknown) {
+  const allowed = new Set(["front", "turn_left", "turn_right"]);
+  if (!Array.isArray(value)) throw new Error("Front, left, and right enrollment angles are required");
+  const unique = [...new Set(value.filter((item): item is string => typeof item === "string"))];
+  if (!["front", "turn_left", "turn_right"].every((angle) => unique.includes(angle)) || unique.some((angle) => !allowed.has(angle))) {
+    throw new Error("Front, left, and right enrollment angles are required");
+  }
+  return unique;
 }
