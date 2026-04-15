@@ -2,10 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { secureHeaders, safeErrorMessage, errorStatus } from "../_shared/security-headers.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limit.ts";
-import { requireEmbedding, requireAngles, requireLiveness, requireString, optionalString, ValidationError } from "../_shared/validation.ts";
+import { requireEmbedding, requireAngles, requireLiveness, requireString, ValidationError } from "../_shared/validation.ts";
 import {
   assertPostMethod,
-  assertValidConsentText,
   cosineSimilarity,
   createDuplicateAlerts,
   decryptEmbedding,
@@ -41,26 +40,20 @@ serve(async (req) => {
     const anglesCompleted = requireAngles(body.anglesCompleted);
     const liveness = requireLiveness(body.liveness);
     const consentText = requireString(body.consentText, "consentText", 2000);
-    const displayName = body.profile?.displayName
-      ? requireString(body.profile.displayName, "displayName", 100)
-      : user.email?.split("@")[0] ?? "Protected User";
-    const username = optionalString(body.profile?.username, "username", 50);
-    const socialLink = optionalString(body.profile?.socialLink, "socialLink", 500);
-    const keywords = optionalString(body.profile?.keywords, "keywords", 500);
 
     if (!hasRequiredChallenges(liveness, ["blink", "turn_left", "turn_right"])) {
       throw new ValidationError("Liveness verification failed during enrollment");
     }
 
     const encrypted = await encryptEmbedding(embedding);
-    const sanitizedProfile = sanitizeProfileInput(profile, user.email?.split("@")[0] ?? "Protected User");
+    const sanitized = sanitizeProfileInput(body.profile, user.email?.split("@")[0] ?? "Protected User");
 
     const { error: profileError } = await admin.from("profiles").upsert({
       user_id: user.id,
-      display_name: displayName,
-      username,
-      social_link: socialLink,
-      keywords,
+      display_name: sanitized.display_name,
+      username: sanitized.username,
+      social_link: sanitized.social_link,
+      keywords: sanitized.keywords,
     }, { onConflict: "user_id" });
     if (profileError) throw profileError;
 
