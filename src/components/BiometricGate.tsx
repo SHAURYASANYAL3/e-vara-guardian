@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
 const CONSENT_TEXT = "I consent to live biometric processing for face authentication, liveness verification, duplicate identity checks, and secure storage of encrypted face embeddings only.";
