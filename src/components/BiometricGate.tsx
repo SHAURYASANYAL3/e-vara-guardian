@@ -60,7 +60,15 @@ const BiometricGate = () => {
         setBiometricVerified(true);
         setSuccess(`Face verified at ${Math.round((data?.confidence ?? 0) * 100)}% confidence.`);
       } else {
-        setSuccess(data?.duplicateMatches ? `${data.duplicateMatches} possible duplicate identity match(es) flagged.` : "Biometric enrollment completed.");
+        if (data?.duplicateMatches && data.duplicateMatches > 0) {
+          toast.warning("Duplicate Identity Detected", {
+            description: `${data.duplicateMatches} possible duplicate identity match(es) found. A security alert has been created for review.`,
+            duration: 10000,
+          });
+          setSuccess(`Biometric enrollment completed. ${data.duplicateMatches} duplicate match(es) flagged.`);
+        } else {
+          setSuccess("Biometric enrollment completed.");
+        }
       }
 
       await refreshState();
