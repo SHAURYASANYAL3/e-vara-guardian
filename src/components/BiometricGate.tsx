@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { LogOut, ShieldCheck } from "lucide-react";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
+import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
 const CONSENT_TEXT = "I consent to live biometric processing for face authentication, liveness verification, duplicate identity checks, and secure storage of encrypted face embeddings only.";
@@ -59,7 +60,15 @@ const BiometricGate = () => {
         setBiometricVerified(true);
         setSuccess(`Face verified at ${Math.round((data?.confidence ?? 0) * 100)}% confidence.`);
       } else {
-        setSuccess(data?.duplicateMatches ? `${data.duplicateMatches} possible duplicate identity match(es) flagged.` : "Biometric enrollment completed.");
+        if (data?.duplicateMatches && data.duplicateMatches > 0) {
+          toast.warning("Duplicate Identity Detected", {
+            description: `${data.duplicateMatches} possible duplicate identity match(es) found. A security alert has been created for review.`,
+            duration: 10000,
+          });
+          setSuccess(`Biometric enrollment completed. ${data.duplicateMatches} duplicate match(es) flagged.`);
+        } else {
+          setSuccess("Biometric enrollment completed.");
+        }
       }
 
       await refreshState();

@@ -1,5 +1,6 @@
 import { type FormEvent, lazy, useMemo, useState } from "react";
 import { Eye, Shield, ScanFace, Layers3, LockKeyhole } from "lucide-react";
+import { toast } from "sonner";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
 import FeatureCard from "@/components/landing/FeatureCard";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -72,7 +73,7 @@ const AuthPage = () => {
 
         if (result.hasSession) {
           const { supabase } = await import("@/integrations/supabase/client");
-          const { error: enrollError } = await supabase.functions.invoke("biometric-register", {
+          const { error: enrollError, data: enrollData } = await supabase.functions.invoke("biometric-register", {
             body: {
               embedding: scanResult.embedding,
               anglesCompleted: scanResult.anglesCompleted,
@@ -93,6 +94,13 @@ const AuthPage = () => {
 
           if (enrollError) throw enrollError;
           setBiometricVerified(true);
+
+          if (enrollData?.duplicateMatches && enrollData.duplicateMatches > 0) {
+            toast.warning("Duplicate Identity Detected", {
+              description: `${enrollData.duplicateMatches} possible duplicate identity match(es) found. A security alert has been created.`,
+              duration: 10000,
+            });
+          }
           setNotice("Account created and biometric enrollment completed.");
         } else {
           setNotice("Account created. Verify your email, then sign in to complete biometric enrollment.");
