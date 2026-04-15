@@ -8,12 +8,6 @@ import { lovable } from "@/integrations/lovable/index";
 
 const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
 
-const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
-
-const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
-
-const HeroScene = lazy(() => import("@/components/landing/HeroScene"));
-
 const CONSENT_TEXT = "I consent to live biometric processing for face authentication and secure storage of encrypted face embeddings only.";
 
 const featureCards = [
