@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Shield, ShieldAlert, Lock, ScrollText, RefreshCw, Unlock } from "lucide-react";
+import { ArrowLeft, Shield, ShieldAlert, Lock, ScrollText, RefreshCw, Unlock, Filter, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -33,6 +33,17 @@ interface SuspAlert {
 
 type Tab = "audit" | "lockouts" | "alerts";
 
+const EVENT_TYPES = [
+  "biometric.enroll",
+  "biometric.verify_success",
+  "biometric.verify_failed",
+  "biometric.duplicate_detected",
+  "biometric.lockout_triggered",
+  "auth.login",
+  "auth.logout",
+  "admin.alert_acknowledged",
+];
+
 const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
   const { isAdmin, acknowledgeAlert } = useAuth();
   const [tab, setTab] = useState<Tab>("audit");
@@ -41,15 +52,34 @@ const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
   const [suspAlerts, setSuspAlerts] = useState<SuspAlert[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Filters
+  const [eventTypeFilter, setEventTypeFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       if (tab === "audit") {
-        const { data } = await supabase
+        let query = supabase
           .from("audit_logs")
           .select("*")
           .order("created_at", { ascending: false })
-          .limit(100);
+          .limit(200);
+
+        if (eventTypeFilter) {
+          query = query.eq("event_type", eventTypeFilter);
+        }
+        if (dateFrom) {
+          query = query.gte("created_at", new Date(dateFrom).toISOString());
+        }
+        if (dateTo) {
+          const endDate = new Date(dateTo);
+          endDate.setDate(endDate.getDate() + 1);
+          query = query.lt("created_at", endDate.toISOString());
+        }
+
+        const { data } = await query;
         setAuditLogs((data as AuditLog[]) ?? []);
       } else if (tab === "lockouts") {
         const { data } = await supabase
@@ -69,7 +99,7 @@ const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     } finally {
       setLoading(false);
     }
-  }, [tab]);
+  }, [tab, eventTypeFilter, dateFrom, dateTo]);
 
   useEffect(() => {
     void fetchData();
@@ -108,6 +138,14 @@ const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
     await acknowledgeAlert(alertId);
     void fetchData();
   };
+
+  const clearFilters = () => {
+    setEventTypeFilter("");
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  const hasActiveFilters = eventTypeFilter || dateFrom || dateTo;
 
   return (
     <div className="min-h-screen bg-background">
@@ -148,6 +186,65 @@ const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
           ))}
         </div>
 
+        {/* Audit Log Filters */}
+        {tab === "audit" && (
+          <div className="mb-4 rounded-lg border border-border bg-card p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Filter className="h-3.5 w-3.5 text-primary" />
+                <span className="text-xs font-mono font-semibold uppercase tracking-wider text-foreground">Filters</span>
+              </div>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="text-[10px] font-mono text-primary hover:underline">
+                  Clear all
+                </button>
+              )}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Event Type</label>
+                <select
+                  value={eventTypeFilter}
+                  onChange={(e) => setEventTypeFilter(e.target.value)}
+                  className="w-full rounded-md border border-border bg-secondary px-2.5 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">All events</option>
+                  {EVENT_TYPES.map((et) => (
+                    <option key={et} value={et}>{et}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                  <Calendar className="h-3 w-3" /> From
+                </label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="w-full rounded-md border border-border bg-secondary px-2.5 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="mb-1 flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                  <Calendar className="h-3 w-3" /> To
+                </label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="w-full rounded-md border border-border bg-secondary px-2.5 py-2 text-xs font-mono text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              </div>
+            </div>
+            {hasActiveFilters && (
+              <p className="mt-2 text-[10px] font-mono text-muted-foreground">
+                Showing filtered results ({auditLogs.length} entries)
+              </p>
+            )}
+          </div>
+        )}
+
         {loading && (
           <div className="flex justify-center py-12">
             <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -160,14 +257,20 @@ const AdminDashboard = ({ onBack }: { onBack: () => void }) => {
             {auditLogs.length === 0 ? (
               <div className="glass-panel rounded-lg p-12 text-center">
                 <ScrollText className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
-                <p className="text-sm font-mono text-muted-foreground">No audit logs found.</p>
+                <p className="text-sm font-mono text-muted-foreground">No audit logs found{hasActiveFilters ? " matching filters" : ""}.</p>
               </div>
             ) : (
               auditLogs.map((log) => (
                 <div key={log.id} className="rounded-md border border-border bg-card p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <span className="inline-block rounded bg-secondary px-1.5 py-0.5 text-[10px] font-mono uppercase text-foreground">
+                      <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-mono uppercase ${
+                        log.event_type.includes("failed") || log.event_type.includes("lockout")
+                          ? "bg-destructive/15 text-destructive"
+                          : log.event_type.includes("success") || log.event_type.includes("enroll")
+                            ? "bg-primary/15 text-primary"
+                            : "bg-secondary text-foreground"
+                      }`}>
                         {log.event_type}
                       </span>
                       <p className="mt-1 text-xs font-body text-muted-foreground truncate">
