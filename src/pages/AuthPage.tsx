@@ -1,5 +1,6 @@
 import { type FormEvent, lazy, useMemo, useState } from "react";
 import { Eye, Shield, ScanFace, Layers3, LockKeyhole } from "lucide-react";
+import { toast } from "sonner";
 import FaceScan, { type BiometricScanResult } from "@/components/FaceScan";
 import FeatureCard from "@/components/landing/FeatureCard";
 import { useIsMobile } from "@/hooks/use-mobile";
