@@ -38,6 +38,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
   const embeddingsRef = useRef<number[][]>([]);
   const snapshotInFlightRef = useRef(false);
   const blinkArmedRef = useRef(false);
+  const handleSnapshotRef = useRef<() => Promise<void>>();
   const stableFramesRef = useRef(0);
   const consecutiveErrorsRef = useRef(0);
   const [active, setActive] = useState(false);
@@ -146,6 +147,11 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
     }
   }, [currentChallenge, stop]);
 
+  // Keep ref always pointing to the latest handleSnapshot so the interval never goes stale
+  useEffect(() => {
+    handleSnapshotRef.current = handleSnapshot;
+  }, [handleSnapshot]);
+
   const start = useCallback(async () => {
     if (!consentGranted) {
       setError("Consent is required before activating the live camera.");
@@ -175,14 +181,14 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
 
       setActive(true);
       intervalRef.current = setInterval(() => {
-        void handleSnapshot();
+        void handleSnapshotRef.current?.();
       }, 350);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Camera unavailable");
     } finally {
       setLoadingModels(false);
     }
-  }, [consentGranted, handleSnapshot]);
+  }, [consentGranted]);
 
   return (
     <div className="rounded-lg border border-border bg-card p-6">
