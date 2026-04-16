@@ -38,6 +38,7 @@ const FaceScan = ({ mode, consentGranted, onComplete }: FaceScanProps) => {
   const embeddingsRef = useRef<number[][]>([]);
   const snapshotInFlightRef = useRef(false);
   const blinkArmedRef = useRef(false);
+  const handleSnapshotRef = useRef<() => Promise<void>>();
   const stableFramesRef = useRef(0);
   const consecutiveErrorsRef = useRef(0);
   const [active, setActive] = useState(false);
